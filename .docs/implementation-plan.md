@@ -200,17 +200,31 @@ This section covers setting up the database schema and authentication-related lo
 - Verified both pages render correctly: titles, descriptions, fields, and navigation links all work as expected
 - TypeScript compilation and ESLint pass with no errors
 
-[ ] Step 10.3: Clean Up Starter Template Remnants  
+[x] Step 10.3: Clean Up Starter Template Remnants ✅ COMPLETED
 **Task**: Remove obsolete files from the original starter template that are no longer needed for PBLab. Delete the `app/protected/` directory and its contents, remove the entire `components/tutorial/` directory, and update any remaining references to ensure the application remains functional. This reduces clutter and potential confusion.
 **Suggested Files for Context**: `app/protected/page.tsx`, `app/protected/layout.tsx`, `components/tutorial/connect-supabase-steps.tsx`, `components/tutorial/fetch-data-steps.tsx`, `components/tutorial/sign-up-user-steps.tsx`, `app/page.tsx`
 **Step Dependencies**: None
 **User Instructions**: None
+**Implementation Notes**: Successfully cleaned up starter template remnants:
+- Removed complete `app/protected/` directory (2 files): page.tsx, layout.tsx
+- Removed complete `components/tutorial/` directory (5 files): tutorial-step.tsx, code-block.tsx, connect-supabase-steps.tsx, fetch-data-steps.tsx, sign-up-user-steps.tsx
+- Cleared Next.js build cache to remove stale references
+- Verified successful TypeScript compilation with no errors
+- Confirmed successful Next.js build (no protected routes in build output)
+- All 7 starter template files removed without any functional impact on PBLab
 
-[ ] Step 10.4: Standardise Supabase Environment Variables
-**Task**: Replace every occurrence of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` with the spec-compliant `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Update `.env.example` and runtime checks so environment names match across code, docs, and Supabase dashboard. Add compile-time guard that throws if any key is missing.
-**Suggested Files for Context**: `lib/supabase/client.ts`, `lib/supabase/server.ts`, `lib/supabase/middleware.ts`, `lib/utils.ts`, `.env.example`
+[x] Step 10.4: Standardise Supabase Environment Variables ✅ COMPLETED
+**Task**: Replace every occurrence of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` with the spec-compliant `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Update runtime checks so environment names match across code, docs, and Supabase dashboard. Add compile-time guard that throws if any key is missing. After merging, run `npm run lint && npm run build` to ensure no unresolved ENV references
+**Suggested Files for Context**: `lib/supabase/client.ts`, `lib/supabase/server.ts`, `lib/supabase/middleware.ts`, `lib/utils.ts`
 **Step Dependencies**: None
-**User Instructions**: After merging, run `npm run lint && npm run build` to ensure no unresolved ENV references
+**User Instructions**: None
+**Implementation Notes**: Successfully standardized all environment variable names and added robust validation:
+- Replaced `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` with `NEXT_PUBLIC_SUPABASE_ANON_KEY` across all 4 Supabase client files
+- Created centralized `validateSupabaseEnvVars()` function in `lib/utils.ts` with helpful error messages
+- Added compile-time validation that throws descriptive errors linking to Supabase dashboard when variables are missing
+- Updated all Supabase clients (`client.ts`, `server.ts`, `middleware.ts`) to use centralized validation
+- Maintained backward compatibility with existing `hasEnvVars` check
+- Verified successful TypeScript compilation and ESLint pass with `npm run lint && npm run build`
 
 [ ] Step 10.5: Optimize Database Seeding Script
 **Task**: Improve `scripts/seed.ts` performance and reliability by: (1) removing manual `public.users` upsert since the trigger handles this, (2) batch-fetching existing users once instead of inside a loop, (3) parallelising user/team/problem inserts with `Promise.all` where safe, (4) adding graceful early-exit if data already seeded, and (5) adding `SUPABASE_SERVICE_ROLE_KEY` placeholder to `.env.example`.
