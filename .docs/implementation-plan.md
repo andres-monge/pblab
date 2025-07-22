@@ -49,7 +49,7 @@ GOOGLE_CLIENT_SECRET=your-google-client-secret
 JWT_SECRET=your-secure-random-string
 ```
 
-[x] Step 4: Update Tailwind Configuration & Globals CSS
+[x] Step 4: Update Tailwind Configuration & Globals CSS ✅ COMPLETED
 **Task**: Modify the `tailwind.config.ts` and `app/globals.css` to align with the PBLab design system. Update the primary color in `app/globals.css` to the specified blue (`--primary: 210 40% 50%`) and secondary to the light blue (`--secondary: 210 40% 90%`).
 **Suggested Files for Context**: `tailwind.config.ts`, `app/globals.css`
 **Step Dependencies**: Step 1
@@ -79,17 +79,28 @@ JWT_SECRET=your-secure-random-string
 
 This section covers setting up the database schema and authentication-related logic using a migration-based approach.
 
-[ ] Step 6: Create Initial Schema Migration
-**Task**: Create a new SQL migration file at `supabase/migrations/0001_initial_schema.sql`. This file will contain all the `CREATE TYPE` and `CREATE TABLE` statements as defined in the "Database Schema" section of the technical specification.
+[x] Step 6: Create Initial Schema Migration ✅ COMPLETED
+**Task**: Create a new SQL migration file at `supabase/migrations/0001_initial_schema.sql`. This file will contain all the `CREATE TYPE` and `CREATE TABLE` statements as defined in the "Database Schema" section of the technical specification. Use the Supabase CLI, run `supabase db push` to apply the migration. 
 **Suggested Files for Context**: None
 **Step Dependencies**: Step 1
-**User Instructions**: If using the Supabase CLI, run `supabase db push` to apply the migration. Otherwise, run the script's contents in your Supabase project's SQL Editor.
+**User Instructions**: None.
+**Implementation Notes**: Successfully created and applied initial database schema:
+- Initialized local Supabase project with `supabase init` 
+- Linked to existing Supabase project (dncxarwdamsvwcjuyqkk) via `supabase link`
+- Created migration file `20250722133352_initial_schema.sql` with comprehensive schema including:
+  * 3 ENUMs: `user_role`, `project_phase`, `assessment_status`
+  * 11 tables: `users`, `courses`, `teams`, `teams_users`, `problems`, `projects`, `rubrics`, `rubric_criteria`, `artifacts`, `comments`, `ai_usage`, `assessments`, `assessment_scores`
+  * 2 performance indexes: `idx_projects_team_id`, `idx_artifacts_project_id`
+  * RLS enabled on all tables for security
+  * Comprehensive documentation and comments
+- Applied migration successfully with `supabase db push`
+- Database now ready for RLS policies in Step 7
 
 [ ] Step 7: Create RLS Policies Migration
-**Task**: Create a second SQL migration file at `supabase/migrations/0002_rls_policies.sql`. This file will contain the `get_my_role()` helper function and all the Row Level Security policies specified in the "Authentication & Authorization" section of the tech spec.
+**Task**: Create a second SQL migration file at `supabase/migrations/0002_rls_policies.sql`. This file will contain the `get_my_role()` helper function and all the Row Level Security policies specified in the "Authentication & Authorization" section of the tech spec. Use the Supabase CLI, run `supabase db push`.
 **Suggested Files for Context**: `supabase/migrations/0001_initial_schema.sql`
 **Step Dependencies**: Step 6
-**User Instructions**: If using the Supabase CLI, run `supabase db push`. Otherwise, run the script's contents in your Supabase project's SQL Editor after the initial schema has been created.
+**User Instructions**: None.
 
 [ ] Step 8: Generate TypeScript Types from Database
 **Task**: Update `package.json` to add a new script: `"types:gen": "supabase gen types typescript --project-id YOUR_PROJECT_REF > lib/db.types.ts"`. This will automate the creation of TypeScript types from your database schema.
@@ -150,13 +161,13 @@ This section deals with creating the backend logic for data manipulation and ext
 **Step Dependencies**: Step 11, Step 12
 **User Instructions**: Ensure your `GEMINI_API_KEY` is set in `.env.local`.
 
-[ ] Step 14: Create API Route for AI Assessment
+[ ] Step 14: IMPORTANT: Create API Route for AI Assessment
 **Task**: Create the API route `app/api/ai/assess/route.ts`. This route will handle generating and regenerating rubric assessments via Gemini Function calling, save the results, and use the `logAiUsage` helper.
 **Suggested Files for Context**: `lib/actions/ai.ts`, `lib/db.types.ts`, `lib/supabase/server.ts`
 **Step Dependencies**: Step 11, Step 12
 **User Instructions**: None
 
-[ ] Step 15: Create API Routes for Google Drive
+[ ] Step 15: IMPORTANT: Create API Routes for Google Drive
 **Task**: Create `app/api/drive/export/route.ts` and `app/api/drive/picker/route.ts` to handle the hybrid Google Drive integration strategy.
 **Suggested Files for Context**: `lib/db.types.ts`
 **Step Dependencies**: Step 8
@@ -180,7 +191,7 @@ This section focuses on building the UI, from shared layouts to specific feature
 **Step Dependencies**: Step 16
 **User Instructions**: None
 
-[ ] Step 18: Educator - Create Problem Page and Rubric Editor
+[ ] Step 18: IMPORTANT: Educator - Create Problem Page and Rubric Editor
 **Task**: Create the "New Problem" page at `app/(main)/educator/problems/new/page.tsx`. Implement the reusable `<RubricEditor />` component (`components/pblab/educator/rubric-editor.tsx`) which will be used here in "template" mode and later in "grading" mode.
 **Suggested Files for Context**: `lib/actions/problems.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 12, Step 17
@@ -192,7 +203,7 @@ This section focuses on building the UI, from shared layouts to specific feature
 **Step Dependencies**: Step 12, Step 13, Step 17
 **User Instructions**: Configure a "artifacts" bucket in Supabase Storage with the appropriate RLS policies.
 
-[ ] Step 20: Educator - AI Assessment Grading View
+[ ] Step 20: IMPORTANT: Educator - AI Assessment Grading View
 **Task**: Extend the `<RubricEditor />` to handle grading mode. This view will appear on the project page for educators when a report is submitted. It should allow for generating, editing, regenerating, and finalizing AI-assisted grades.
 **Suggested Files for Context**: `components/pblab/educator/rubric-editor.tsx`, `app/api/ai/assess/route.ts`
 **Step Dependencies**: Step 14, Step 18, Step 19
@@ -210,7 +221,7 @@ This section includes steps for creating tests to ensure application quality and
 **Step Dependencies**: Step 11, Step 12
 **User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and `npm test`.
 
-[ ] Step 22: Setup and Write E2E Tests
+[ ] Step 22: IMPORTANT: Setup and Write E2E Tests
 **Task**: Configure Playwright for end-to-end testing. Implement the critical user flow tests T-01 (Student can join team via invite) and T-04 (Educator feedback locks project editing).
 **Suggested Files for Context**: All relevant page and component files for these flows.
 **Step Dependencies**: All feature steps.
