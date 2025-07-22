@@ -5,7 +5,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "types:gen": "supabase gen types typescript --project-id dncxarwdamsvwcjuyqkk > lib/db.types.ts"
+    "types:gen": "supabase gen types typescript --project-id dncxarwdamsvwcjuyqkk > lib/db.types.ts",
+    "db:seed": "npx tsx scripts/seed.ts"
   },
   "dependencies": {
     "@radix-ui/react-checkbox": "^1.3.1",
