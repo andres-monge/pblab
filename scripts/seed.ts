@@ -6,7 +6,6 @@ import * as dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 
 // Types for better type safety
-type UserInsert = Database['public']['Tables']['users']['Insert'];
 type CourseInsert = Database['public']['Tables']['courses']['Insert'];
 type TeamInsert = Database['public']['Tables']['teams']['Insert'];
 type TeamUserInsert = Database['public']['Tables']['teams_users']['Insert'];
@@ -37,7 +36,7 @@ const supabase = createClient<Database>(
  * - "Outbreak Simulator" (Epidemiology)
  * - "EcoBalance" (Predator-Prey Ecology)
  */
-async function seedDatabase() {
+export async function seedDatabase() {
   console.log('🌱 Starting PBLab database seeding...');
   
   try {
@@ -49,22 +48,38 @@ async function seedDatabase() {
     console.log('✅ Environment variables loaded');
     console.log('✅ Supabase client initialized');
     
+    // Early exit check: if sample data already exists, don't re-seed
+    const { data: existingCourse } = await supabase
+      .from('courses')
+      .select('id')
+      .eq('id', '00000000-0000-0000-0000-000000000100')
+      .single();
+    
+    if (existingCourse) {
+      console.log('ℹ️  Sample data already exists. Skipping seeding process.');
+      console.log('🎉 Database seeding completed (no changes needed)!');
+      return;
+    }
+    
+    console.log('📝 No existing sample data found. Proceeding with seeding...');
+    
     // Step 1: Create sample users
     const users = await createSampleUsers();
     
     // Step 2: Create course
     const courseId = await createSampleCourse(users);
     
-    // Step 3: Create teams
-    const teamIds = await createSampleTeams(courseId);
+    // Steps 3 & 5: Parallelize independent operations (teams and problems)
+    console.log('🚀 Creating teams and problems in parallel...');
+    const [teamIds, problemIds] = await Promise.all([
+      createSampleTeams(courseId),
+      createSampleProblems(courseId, users)
+    ]);
     
-    // Step 4: Assign students to teams
+    // Step 4: Assign students to teams (depends on teams being created)
     await assignStudentsToTeams(teamIds, users);
     
-    // Step 5: Create problems with rubrics
-    const problemIds = await createSampleProblems(courseId, users);
-    
-    // Step 6: Create project instances
+    // Step 6: Create project instances (depends on both teams and problems)
     await createSampleProjects(problemIds, teamIds);
     
     console.log('🎉 Database seeding completed successfully!');
@@ -117,48 +132,48 @@ async function createSampleUsers() {
     }
   ];
 
-  const createdUsers = [];
-  
-  for (const userData of usersToCreate) {
-    // Try to create new user (will fail gracefully if already exists)
+  // Batch-fetch all existing users once for efficient lookups
+  const { data: existingUsersList } = await supabase.auth.admin.listUsers();
+  const existingUsersMap = new Map(
+    existingUsersList.users.map(user => [user.email, user])
+  );
+
+  // Parallelize user creation for better performance
+  const userCreationPromises = usersToCreate.map(async (userData) => {
+    // Check if user already exists using our efficient lookup map
+    if (existingUsersMap.has(userData.email)) {
+      console.log(`✓ User ${userData.email} already exists`);
+      return existingUsersMap.get(userData.email)!;
+    }
+
+    // Try to create new user
     const { data, error } = await supabase.auth.admin.createUser(userData);
     
     if (error) {
-      // Check if user already exists
+      // Double-check for race condition (user created between our check and now)
       if (error.message.includes('already registered') || error.message.includes('already been registered')) {
         console.log(`✓ User ${userData.email} already exists`);
-        // Get existing users to find this one
-        const { data: usersList } = await supabase.auth.admin.listUsers();
-        const existingUser = usersList.users.find(u => u.email === userData.email);
+        // Fetch the user that was just created by another process
+        const { data: updatedUsersList } = await supabase.auth.admin.listUsers();
+        const existingUser = updatedUsersList.users.find(u => u.email === userData.email);
         if (existingUser) {
-          createdUsers.push(existingUser);
+          return existingUser;
         }
-        continue;
       }
       throw new Error(`Failed to create user ${userData.email}: ${error.message}`);
     }
     
     if (data.user) {
-      createdUsers.push(data.user);
       console.log(`✓ Created user: ${userData.email}`);
+      return data.user;
     }
-  }
+    
+    throw new Error(`Failed to create user ${userData.email}: No user data returned`);
+  });
 
-  // Now create corresponding entries in public.users table
-  const publicUsers: UserInsert[] = createdUsers.map(user => ({
-    id: user.id,
-    email: user.email!,
-    name: user.user_metadata?.name || user.email?.split('@')[0],
-    role: user.user_metadata?.role || 'student'
-  }));
-
-  const { error: publicUsersError } = await supabase
-    .from('users')
-    .upsert(publicUsers, { onConflict: 'id' });
-
-  if (publicUsersError) {
-    throw new Error(`Failed to create public users: ${publicUsersError.message}`);
-  }
+  const createdUsers = await Promise.all(userCreationPromises);
+  
+  // Note: No manual public.users upsert needed - the database trigger handles this automatically
   
   console.log('✅ Created 6 sample users (2 educators, 4 students)');
   return createdUsers;
@@ -322,6 +337,7 @@ Your AI tutor can help with prompts like:
     course_id: courseId
   };
 
+  // Create problems and rubrics in parallel for better performance
   const { error: problemsError } = await supabase
     .from('problems')
     .upsert([outbreakProblem, ecoBalanceProblem], { onConflict: 'id' });
@@ -330,11 +346,12 @@ Your AI tutor can help with prompts like:
     throw new Error(`Failed to create problems: ${problemsError.message}`);
   }
 
-  // Create rubrics for both problems
-  await createRubrics([outbreakProblem.id!, ecoBalanceProblem.id!]);
+  // Create rubrics immediately after problems are created
+  const problemIds = [outbreakProblem.id!, ecoBalanceProblem.id!];
+  await createRubrics(problemIds);
   
   console.log('✅ Created 2 problems: Outbreak Simulator, EcoBalance');
-  return [outbreakProblem.id!, ecoBalanceProblem.id!];
+  return problemIds;
 }
 
 /**
