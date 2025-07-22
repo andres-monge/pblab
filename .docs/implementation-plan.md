@@ -4,7 +4,7 @@
 
 This section focuses on initializing the project, structuring directories, and setting up the basic configuration.
 
-[✓] Step 1: Initialize Project Structure ✅ COMPLETED
+[x] Step 1: Initialize Project Structure ✅ COMPLETED
 **Task**: Based on the provided `starter_template` and the `tech_spec`, create the initial directory structure for the PBLab application. This includes creating new folders like `app/(main)`, `app/p/[projectId]`, `components/pblab`, `lib/actions`, `supabase/migrations` and the necessary subdirectories as outlined in the technical specification. No files need to be created in this step, only the directory structure.
 **Suggested Files for Context**: None
 **Step Dependencies**: None
@@ -17,13 +17,17 @@ This section focuses on initializing the project, structuring directories, and s
 - Organized `components/pblab` with feature-specific subdirectories
 - Created `lib/actions`, `scripts`, and `supabase/migrations` directories
 
-[ ] Step 2: Install Additional Dependencies
+[x] Step 2: Install Additional Dependencies ✅ COMPLETED
 **Task**: Update the `package.json` file to include the necessary libraries for the project that are not in the starter template. Based on the tech spec, this includes `react-markdown` for rendering markdown descriptions, `jsonwebtoken` for team invite links, and the corresponding type definitions `@types/jsonwebtoken`. Also add `supabase` and `ts-node` as development dependencies to support the new database workflows.
 **Suggested Files for Context**: `package.json`
 **Step Dependencies**: Step 1
 **User Instructions**: Run `npm install` after the `package.json` file is updated.
+**Implementation Notes**: Successfully added all required dependencies:
+- Production dependencies: `react-markdown@9.0.1` for markdown rendering, `jsonwebtoken@9.0.2` for secure invite links
+- Development dependencies: `@types/jsonwebtoken@9.0.7` for TypeScript support, `supabase@1.215.3` CLI for database operations, `ts-node@10.9.2` for running TypeScript scripts
+- All packages installed successfully with npm install (0 vulnerabilities found)
 
-[ ] Step 3: Update `.env.example` with All Required Keys
+[x] Step 3: Update `.env.example` with All Required Keys ✅ COMPLETED
 **Task**: Update the `.env.example` file to include placeholders for all required secrets. This provides a clear setup guide for developers.
 **Suggested Files for Context**: `.env.example`
 **Step Dependencies**: Step 1
