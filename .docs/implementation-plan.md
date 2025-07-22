@@ -265,11 +265,59 @@ This section deals with creating the backend logic for data manipulation and ext
 - Successfully tested with database insertion, JSONB handling, and cleanup operations
 - Ready for use by AI Tutor and AI Assessment API routes in upcoming steps
 
-[ ] Step 12: Implement Server Actions for Teams, Problems, Projects, and Artifacts
+[x] Step 12: Implement Server Actions for Teams, Problems, Projects, and Artifacts ✅ COMPLETED
 **Task**: Create the server action files (`teams.ts`, `problems.ts`, `projects.ts`, `artifacts.ts`) in `lib/actions/`. Implement all the specified actions: `joinTeam`, `createProblem`, `updateProjectPhase`, `createArtifact`, `createComment`, etc. Ensure they are using the new generated types for safety.
 **Suggested Files for Context**: `lib/db.types.ts`, `lib/supabase/server.ts`
 **Step Dependencies**: Step 8
 **User Instructions**: None
+**Implementation Notes**: Successfully created 4 comprehensive server action files with robust security and validation:
+
+**lib/actions/teams.ts** (283 lines):
+- `joinTeam(teamId)`: Adds authenticated user to team with duplicate/permission checks
+- `generateInviteToken(teamId)`: Creates secure 24-hour JWT tokens for team invites (educator/admin only)
+- `verifyInviteToken(token)`: Validates and decodes JWT tokens with proper error handling
+- Implements complete JWT workflow for team invite links as specified in tech spec
+
+**lib/actions/problems.ts** (266 lines):
+- `createProblem(data)`: Transactional creation of problem + rubric + criteria with rollback on failure
+- `getDefaultRubricTemplate()`: Provides 5-criteria PBL assessment template
+- Full validation of rubric structure and criterion data
+- Only educators/admins can create problems with proper course authorization
+
+**lib/actions/projects.ts** (501 lines):
+- `createProject(problemId, teamId)`: Creates project instances with validation (same course, no duplicates)
+- `updateProjectPhase(projectId, newPhase)`: Handles PBL workflow transitions with role-based rules
+- `updateProjectReportUrl(projectId, url)`: Sets final report URL with automatic phase advancement
+- `updateProjectReportContent(projectId, url, content)`: Caches Google Drive content for AI assessment
+- Comprehensive phase transition logic: students advance sequentially, educators can manage freely
+
+**lib/actions/artifacts.ts** (542 lines):
+- `createArtifact(data)`: File upload with security whitelist validation (T-03 test requirement)
+- `deleteArtifact(artifactId)`: Permission-based deletion (owners or educators only)
+- `createComment(data)`: Team/educator commenting on artifacts
+- `getAllowedFileTypes()`: Helper for client-side validation
+- Comprehensive file type security: 25 MIME types + 20 file extensions whitelisted
+- Prevents operations on closed projects
+
+**Security Features Implemented:**
+- Authentication verification for all actions
+- Role-based authorization (student/educator/admin)
+- RLS policy integration for data access control  
+- Input validation and sanitization
+- Database transaction handling with rollback
+- File type security whitelist (prevents .exe uploads per T-03)
+- JWT token security with expiration and validation
+- Team membership verification for students
+- Course-based access control for educators
+
+**Error Handling:**
+- Comprehensive parameter validation
+- User-friendly error messages
+- Database error handling with rollback
+- JWT-specific error handling with clear messages
+- Security error prevention (no permission escalation)
+
+All functions follow existing patterns from `ai.ts`, use proper TypeScript types from `lib/db.types.ts`, and integrate with Next.js cache revalidation. Ready for frontend integration in Steps 13-20.
 
 [ ] Step 13: Create API Route for AI Tutor
 **Task**: Create the API route `app/api/ai/tutor/route.ts`. This route will handle POST requests, construct a prompt with history, call the Gemini API, and use the `logAiUsage` helper to log the interaction before returning the response.
