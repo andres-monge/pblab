@@ -96,46 +96,39 @@ This section covers setting up the database schema and authentication-related lo
 - Applied migration successfully with `supabase db push`
 - Database now ready for RLS policies in Step 7
 
-[ ] Step 7: Create RLS Policies Migration
+[x] Step 7: Create RLS Policies Migration ✅ COMPLETED
 **Task**: Create a second SQL migration file at `supabase/migrations/0002_rls_policies.sql`. This file will contain the `get_my_role()` helper function and all the Row Level Security policies specified in the "Authentication & Authorization" section of the tech spec. Use the Supabase CLI, run `supabase db push`.
 **Suggested Files for Context**: `supabase/migrations/0001_initial_schema.sql`
 **Step Dependencies**: Step 6
 **User Instructions**: None.
+**Implementation Notes**: Successfully created comprehensive RLS policies migration:
+- Created `get_my_role()` helper function for efficient role checking
+- Implemented complete RLS policy set for all 12 tables covering:
+  * Role-based access control (student/educator/admin)
+  * Team-based access (students only see their team's data)
+  * Course-based access (educators only see their courses)
+  * Project-based access (artifacts, comments, assessments scoped to team membership)
+- Added performance indexes for frequently queried columns in RLS policies
+- Applied migration successfully with `npx supabase db push --include-all`
+- Database is now fully secured with proper authorization boundaries
 
 [ ] Step 8: Generate TypeScript Types from Database
-**Task**: Update `package.json` to add a new script: `"types:gen": "supabase gen types typescript --project-id YOUR_PROJECT_REF > lib/db.types.ts"`. This will automate the creation of TypeScript types from your database schema.
-**Suggested Files for Context**: `package.json`
+**Task**: Find the Supabase project reference from the local configuration, add a new script to `package.json`: `"types:gen": "supabase gen types typescript --project-id PROJECT_REF > lib/db.types.ts"`, and run the command to generate the `lib/db.types.ts` file with TypeScript types from the database schema.
+**Suggested Files for Context**: `package.json`, `supabase/config.toml`
 **Step Dependencies**: Step 7
-**User Instructions**: Find your `YOUR_PROJECT_REF` in your Supabase project's General Settings. Run `npm run types:gen` to generate the `lib/db.types.ts` file. You will need to have the Supabase CLI installed and be logged in (`supabase login`).
+**User Instructions**: Ensure you have the Supabase CLI installed and are logged in (`supabase login`).
 
 [ ] Step 9: Create Database Seeding Script
-**Task**: Create a script at `scripts/seed.ts` to populate the database with the two example problems ("Outbreak Simulator" and "EcoBalance") and sample users. Add a new script to `package.json`: `"db:seed": "ts-node scripts/seed.ts"`.
+**Task**: Create a script at `scripts/seed.ts` to populate the database with the two example problems ("Outbreak Simulator" and "EcoBalance") and sample users. Add a new script to `package.json`: `"db:seed": "ts-node scripts/seed.ts"`. Run the seeding command to populate the database.
 **Suggested Files for Context**: `supabase/migrations/0001_initial_schema.sql`, `lib/db.types.ts`
 **Step Dependencies**: Step 8
-**User Instructions**: Run `npm run db:seed` to seed the database.
+**User Instructions**: None.
 
 [ ] Step 10: Enhance Sign-Up and Create User Profile Trigger
-**Task**: Modify the `components/sign-up-form.tsx` to include a "Full Name" input. The `handleSignUp` function should pass the name in the `options.data` object.
+**Task**: Modify the `components/sign-up-form.tsx` to include a "Full Name" input. The `handleSignUp` function should pass the name in the `options.data` object. Create a new migration file `supabase/migrations/0003_user_profile_trigger.sql` with the database function and trigger to automatically copy new auth users to the `public.users` table, then apply the migration.
 **Suggested Files for Context**: `components/sign-up-form.tsx`
 **Step Dependencies**: Step 7
-**User Instructions**: Manually create a database function and trigger in the Supabase SQL Editor to copy new auth users to your `public.users` table.
-
-```sql
--- 1. Create the function
-create function public.handle_new_user()
-returns trigger as $$
-begin
-  insert into public.users (id, email, name, role)
-  values (new.id, new.email, new.raw_user_meta_data->>'name', 'student');
-  return new;
-end;
-$$ language plpgsql security definer;
-
--- 2. Create the trigger
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure public.handle_new_user();
-```
+**User Instructions**: None.
 
 -----
 
