@@ -16,28 +16,45 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export function LoginForm({
+interface AuthFormProps {
+  mode: 'login' | 'signup';
+  className?: string;
+}
+
+export function AuthForm({
+  mode,
   className,
   ...props
-}: React.ComponentPropsWithoutRef<"div">) {
+}: AuthFormProps & React.ComponentPropsWithoutRef<"div">) {
   const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const isSignup = mode === 'signup';
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const supabase = createClient();
     setIsLoading(true);
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
+      const authOptions = {
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
+          ...(isSignup && {
+            shouldCreateUser: true,
+            data: {
+              name: fullName,
+            },
+          }),
         },
-      });
+      };
+
+      const { error } = await supabase.auth.signInWithOtp(authOptions);
       if (error) throw error;
       router.push("/auth/sign-up-success");
     } catch (error: unknown) {
@@ -47,18 +64,52 @@ export function LoginForm({
     }
   };
 
+  const config = {
+    login: {
+      title: "Login",
+      description: "Enter your email below to receive a magic link",
+      buttonText: isLoading ? "Sending login link..." : "Send login link",
+      linkText: "Don't have an account?",
+      linkHref: "/auth/sign-up",
+      linkAction: "Sign up",
+    },
+    signup: {
+      title: "Sign up", 
+      description: "Create a new account - we'll send you a magic link",
+      buttonText: isLoading ? "Creating account..." : "Create account",
+      linkText: "Already have an account?",
+      linkHref: "/auth/login",
+      linkAction: "Login",
+    },
+  };
+
+  const currentConfig = config[mode];
+
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-2xl">{currentConfig.title}</CardTitle>
           <CardDescription>
-            Enter your email below to receive a magic link
+            {currentConfig.description}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleLogin}>
+          <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
+              {isSignup && (
+                <div className="grid gap-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="John Doe"
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                  />
+                </div>
+              )}
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -72,16 +123,16 @@ export function LoginForm({
               </div>
               {error && <p className="text-sm text-red-500">{error}</p>}
               <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Sending magic link..." : "Send magic link"}
+                {currentConfig.buttonText}
               </Button>
             </div>
             <div className="mt-4 text-center text-sm">
-              Don&apos;t have an account?{" "}
+              {currentConfig.linkText}{" "}
               <Link
-                href="/auth/sign-up"
+                href={currentConfig.linkHref}
                 className="underline underline-offset-4"
               >
-                Sign up
+                {currentConfig.linkAction}
               </Link>
             </div>
           </form>
@@ -89,4 +140,4 @@ export function LoginForm({
       </Card>
     </div>
   );
-}
+} 

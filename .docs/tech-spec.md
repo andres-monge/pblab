@@ -76,6 +76,8 @@ The project will be built upon the provided Next.js starter template. New direct
 │   │   ├── header.tsx           \# App header with nav and user menu
 │   │   ├── sidebar.tsx          \# Navigation sidebar for dashboard
 │   │   ├── pblab-logo.tsx       \# PBLab logo component
+│   │   ├── auth/                \# Authentication components
+│   │   │   └── auth-form.tsx    \# Reusable magic link auth form
 │   │   ├── project/
 │   │   │   ├── artifact-card.tsx
 │   │   │   ├── artifact-uploader.tsx

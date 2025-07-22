@@ -183,6 +183,43 @@ This section covers setting up the database schema and authentication-related lo
 
 -----
 
+## Phase 2 Optimization - Database & Authentication Enhancement
+
+[x] Step 10.2: Refactor Auth Forms into Reusable Component ✅ COMPLETED
+**Task**: The current `login-form.tsx` and `sign-up-form.tsx` files share significant duplicate code for state management, UI layout, and submission logic. Create a reusable `components/pblab/auth/auth-form.tsx` component that accepts a `mode` prop ('login' | 'signup') to dynamically adjust fields, titles, and submission behavior. This eliminates code duplication and improves maintainability.
+**Suggested Files for Context**: `components/login-form.tsx`, `components/sign-up-form.tsx`, `app/(auth)/login/page.tsx`, `app/(auth)/sign-up/page.tsx`
+**Step Dependencies**: None
+**User Instructions**: None
+**Implementation Notes**: Successfully eliminated ~80% code duplication by creating unified AuthForm component:
+- Created `components/pblab/auth/auth-form.tsx` with mode prop ('login' | 'signup')
+- Dynamic behavior: login shows email only, signup shows fullName + email
+- Improved UX with differentiated button text: "Send login link" vs "Create account"
+- Updated both `app/(auth)/login/page.tsx` and `app/(auth)/sign-up/page.tsx` to use new component
+- Removed old `components/login-form.tsx` and `components/sign-up-form.tsx` files
+- Maintained all existing functionality: magic link auth, error handling, loading states
+- Verified both pages render correctly: titles, descriptions, fields, and navigation links all work as expected
+- TypeScript compilation and ESLint pass with no errors
+
+[ ] Step 10.3: Clean Up Starter Template Remnants  
+**Task**: Remove obsolete files from the original starter template that are no longer needed for PBLab. Delete the `app/protected/` directory and its contents, remove the entire `components/tutorial/` directory, and update any remaining references to ensure the application remains functional. This reduces clutter and potential confusion.
+**Suggested Files for Context**: `app/protected/page.tsx`, `app/protected/layout.tsx`, `components/tutorial/connect-supabase-steps.tsx`, `components/tutorial/fetch-data-steps.tsx`, `components/tutorial/sign-up-user-steps.tsx`, `app/page.tsx`
+**Step Dependencies**: None
+**User Instructions**: None
+
+[ ] Step 10.4: Standardise Supabase Environment Variables
+**Task**: Replace every occurrence of `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY` with the spec-compliant `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Update `.env.example` and runtime checks so environment names match across code, docs, and Supabase dashboard. Add compile-time guard that throws if any key is missing.
+**Suggested Files for Context**: `lib/supabase/client.ts`, `lib/supabase/server.ts`, `lib/supabase/middleware.ts`, `lib/utils.ts`, `.env.example`
+**Step Dependencies**: None
+**User Instructions**: After merging, run `npm run lint && npm run build` to ensure no unresolved ENV references
+
+[ ] Step 10.5: Optimize Database Seeding Script
+**Task**: Improve `scripts/seed.ts` performance and reliability by: (1) removing manual `public.users` upsert since the trigger handles this, (2) batch-fetching existing users once instead of inside a loop, (3) parallelising user/team/problem inserts with `Promise.all` where safe, (4) adding graceful early-exit if data already seeded, and (5) adding `SUPABASE_SERVICE_ROLE_KEY` placeholder to `.env.example`.
+**Suggested Files for Context**: `scripts/seed.ts`, `.env.example`, `README.md`
+**Step Dependencies**: None
+**User Instructions**: Re-run `npm run db:seed` to verify script completes idempotently
+
+-----
+
 ## Phase 3: Backend: Server Actions & API Routes
 
 This section deals with creating the backend logic for data manipulation and external service integrations.
