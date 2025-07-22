@@ -249,11 +249,21 @@ This section covers setting up the database schema and authentication-related lo
 
 This section deals with creating the backend logic for data manipulation and external service integrations.
 
-[ ] Step 11: Create Abstracted AI Logging Helper
+[x] Step 11: Create Abstracted AI Logging Helper ✅ COMPLETED
 **Task**: Create a new file `lib/actions/ai.ts`. Inside, implement a reusable function `logAiUsage({ userId, projectId, feature, prompt, response })` that inserts a record into the `ai_usage` table. This keeps the logging logic centralized.
 **Suggested Files for Context**: `lib/db.types.ts`, `lib/supabase/server.ts`
 **Step Dependencies**: Step 8
 **User Instructions**: None
+**Implementation Notes**: Successfully created centralized AI logging helper function:
+- Created `lib/actions/ai.ts` with TypeScript server action using "use server" directive
+- Implemented `logAiUsage()` function with comprehensive parameter validation and error handling
+- Added `LogAiUsageParams` interface with proper typing using `Json` type from database schema
+- Included authentication verification to ensure user is logged in and matches provided userId
+- Added security check to prevent users from logging on behalf of other users
+- Function returns the created record ID for tracking and audit purposes
+- Comprehensive error handling with descriptive messages following existing codebase patterns
+- Successfully tested with database insertion, JSONB handling, and cleanup operations
+- Ready for use by AI Tutor and AI Assessment API routes in upcoming steps
 
 [ ] Step 12: Implement Server Actions for Teams, Problems, Projects, and Artifacts
 **Task**: Create the server action files (`teams.ts`, `problems.ts`, `projects.ts`, `artifacts.ts`) in `lib/actions/`. Implement all the specified actions: `joinTeam`, `createProblem`, `updateProjectPhase`, `createArtifact`, `createComment`, etc. Ensure they are using the new generated types for safety.
