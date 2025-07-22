@@ -140,13 +140,46 @@ This section covers setting up the database schema and authentication-related lo
 - Generated comprehensive rubrics with 5 criteria each (1-5 point scale)
 - Created 4 project instances (both teams working on both problems in research phase)
 - Used proper TypeScript types, error handling, and idempotent operations
-- Script creates real authenticated users with credentials: educator1/2@university.edu, student1-4@university.edu (password: password123)
+- Script creates real authenticated users via Supabase Admin API: educator1/2@university.edu, student1-4@university.edu (no passwords needed for magic link auth)
 
-[ ] Step 10: Enhance Sign-Up and Create User Profile Trigger
-**Task**: Modify the `components/sign-up-form.tsx` to include a "Full Name" input. The `handleSignUp` function should pass the name in the `options.data` object. Create a new migration file `supabase/migrations/0003_user_profile_trigger.sql` with the database function and trigger to automatically copy new auth users to the `public.users` table, then apply the migration.
-**Suggested Files for Context**: `components/sign-up-form.tsx`
+[x] Step 10: Convert Authentication to Magic Link and Create User Profile Trigger ✅ COMPLETED
+**Task**: Convert the authentication system from password-based to magic link. This includes: (1) Modify `components/sign-up-form.tsx` to include a "Full Name" input and remove password fields, using `signInWithOtp` instead of `signUp`, (2) Update `components/login-form.tsx` to only ask for email and use magic link authentication, (3) Create migration file `supabase/migrations/0003_user_profile_trigger.sql` with database function and trigger to automatically copy new auth users to `public.users` table, (4) Enable email confirmations in Supabase config.
+**Suggested Files for Context**: `components/sign-up-form.tsx`, `components/login-form.tsx`, `supabase/config.toml`
 **Step Dependencies**: Step 7
 **User Instructions**: None.
+**Implementation Notes**: Successfully converted to magic link authentication:
+- Enabled email confirmations in `supabase/config.toml` (`enable_confirmations = true`)
+- Created comprehensive database trigger migration `0003_user_profile_trigger.sql` with:
+  * `handle_new_user()` function to auto-copy auth users to `public.users` table
+  * Trigger `on_auth_user_created` that fires on auth.users INSERT
+  * Proper role assignment (defaults to 'student', supports metadata override)
+  * Conflict handling to prevent duplicate inserts
+- Converted `components/sign-up-form.tsx` to magic link:
+  * Added "Full Name" input field (required)
+  * Removed password and repeat password fields
+  * Updated to use `signInWithOtp({ shouldCreateUser: true })` with name in metadata
+  * Updated messaging to reflect magic link flow
+- Converted `components/login-form.tsx` to magic link:
+  * Removed password field and "Forgot password" link
+  * Updated to use `signInWithOtp()` for passwordless login
+  * Updated messaging to reflect magic link flow
+- Updated redirect flow to use `/dashboard` instead of `/protected`
+- Updated sign-up success page messaging for magic link flow
+- All TypeScript compilation successful with no errors
+- Development server running successfully with updated authentication flow
+
+[x] Step 10.1: Remove Password-Related Components and Code ✅ COMPLETED
+**Task**: Clean up password-related components and code since magic link auth doesn't use passwords. This includes: (1) Delete obsolete pages: `app/(auth)/forgot-password/page.tsx`, `app/(auth)/update-password/page.tsx`, (2) Delete obsolete components: `components/forgot-password-form.tsx`, `components/update-password-form.tsx`, (3) Update any references to these components in the codebase, (4) Revise `scripts/seed.ts` to remove any password-related code from the seeding script (though Supabase Admin API approach should remain compatible).
+**Suggested Files for Context**: `scripts/seed.ts`
+**Step Dependencies**: Step 10
+**User Instructions**: None.
+**Implementation Notes**: Successfully cleaned up all password-related code:
+- Removed `password: 'password123'` fields from all 6 user creation objects in `scripts/seed.ts`
+- Set `email_confirm: true` for all users to enable magic link authentication
+- Updated README.md to reflect "Magic link authentication for passwordless login" instead of password-based auth
+- Commented out password-related settings in `supabase/config.toml`: `minimum_password_length`, `password_requirements`, and `secure_password_change`
+- Verified seed script runs successfully and creates users compatible with magic link auth
+- All users (2 educators, 4 students) created successfully via Supabase Admin API without passwords
 
 -----
 
@@ -233,7 +266,7 @@ This section includes steps for creating tests to ensure application quality and
 **User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and `npm test`.
 
 [ ] Step 22: IMPORTANT: Setup and Write E2E Tests
-**Task**: Configure Playwright for end-to-end testing. Implement the critical user flow tests T-01 (Student can join team via invite) and T-04 (Educator feedback locks project editing).
+**Task**: Configure Playwright for end-to-end testing with magic link authentication support. Implement the critical user flow tests T-01 (Student can join team via invite) and T-04 (Educator feedback locks project editing). For magic link authentication testing, use Supabase Admin API to generate direct login tokens for test users instead of handling email magic links, or configure a test email service to capture and parse magic link emails.
 **Suggested Files for Context**: All relevant page and component files for these flows.
 **Step Dependencies**: All feature steps.
-**User Instructions**: Run `npm init playwright@latest` and `npx playwright test`.
+**User Instructions**: Run `npm init playwright@latest` and `npx playwright test`. Consider setting up test-specific authentication helpers that bypass email magic links for reliable testing.

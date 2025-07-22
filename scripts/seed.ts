@@ -86,38 +86,32 @@ async function createSampleUsers() {
     // Educators
     {
       email: 'educator1@university.edu',
-      password: 'password123',
       user_metadata: { name: 'Educator 1', role: 'educator' },
       email_confirm: true
     },
     {
       email: 'educator2@university.edu',
-      password: 'password123',
       user_metadata: { name: 'Educator 2', role: 'educator' },
       email_confirm: true
     },
     // Students
     {
       email: 'student1@university.edu',
-      password: 'password123',
       user_metadata: { name: 'Student 1', role: 'student' },
       email_confirm: true
     },
     {
       email: 'student2@university.edu',
-      password: 'password123',
       user_metadata: { name: 'Student 2', role: 'student' },
       email_confirm: true
     },
     {
       email: 'student3@university.edu',
-      password: 'password123',
       user_metadata: { name: 'Student 3', role: 'student' },
       email_confirm: true
     },
     {
       email: 'student4@university.edu',
-      password: 'password123',
       user_metadata: { name: 'Student 4', role: 'student' },
       email_confirm: true
     }
