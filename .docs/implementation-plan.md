@@ -363,11 +363,60 @@ This phase adds the backend infrastructure for the new Learning Goals, AI Tutor 
 - Database now fully secured with proper RLS policies enabling safe notification access patterns
 - Types are ready for use in upcoming server actions and UI components
 
-[ ] Step 15: Implement Server Actions for Learning Goals and Notifications
+[x] Step 15: Implement Server Actions for Learning Goals and Notifications ✅ COMPLETED
 **Task**: 1. In `lib/actions/projects.ts`, add a new server action `updateProjectLearningGoals({ projectId, goals })`. 2. Create a new file `lib/actions/notifications.ts` and implement two server actions: `getNotifications()` to fetch the current user's unread notifications, and `markNotificationAsRead({ notificationId })`.
 **Suggested Files for Context**: `lib/actions/projects.ts`, `lib/db.types.ts`, `lib/supabase/server.ts`
 **Step Dependencies**: Step 14
 **User Instructions**: None
+**Implementation Notes**: Successfully implemented comprehensive server actions for Learning Goals and Notifications:
+
+**lib/actions/projects.ts enhancements:**
+- Added `UpdateProjectLearningGoalsParams` interface with proper TypeScript typing
+- Implemented `updateProjectLearningGoals({ projectId, goals })` function with comprehensive features:
+  * Authentication verification and role-based authorization
+  * Project access validation via RLS policies
+  * Closed project protection (prevents editing goals in finished projects)
+  * Student team membership verification for secure access
+  * Educator course-based access control
+  * Proper handling of empty goals (stores as null)
+  * Path revalidation for UI updates
+  * Comprehensive error handling with user-friendly messages
+
+**lib/actions/notifications.ts (new file, 260+ lines):**
+- Created complete notification system with 3 core functions:
+  * `getNotifications({ unreadOnly?, limit? })`: Fetches user notifications with actor details
+  * `markNotificationAsRead({ notificationId })`: Marks notifications as read with security checks
+  * `createNotification({ recipientId, type, referenceId, referenceUrl? })`: Helper for @mention functionality
+- Implemented `NotificationWithActor` interface for rich UI display with user details
+- Added comprehensive parameter validation and security checks
+- Integrated with existing RLS policies for data security
+- Optimized queries with proper joins and ordering (newest first)
+- Self-notification prevention (users can't mention themselves)
+- Efficient duplicate read checking to avoid unnecessary updates
+- Path revalidation for real-time UI updates
+
+**Security Features:**
+- Authentication verification for all functions
+- RLS policy integration for data access control
+- Role-based authorization (student/educator/admin)
+- Team membership verification for students
+- Course-based access control for educators
+- Prevention of cross-user notification manipulation
+- Input validation and sanitization
+
+**Performance Optimizations:**
+- Efficient database queries with proper indexes (already created)
+- Optimized joins for actor user details
+- Configurable limits for notification fetching (default 50, max 100)
+- Strategic path revalidation to minimize cache overhead
+
+**Error Handling:**
+- Comprehensive parameter validation
+- User-friendly error messages
+- Database error handling with proper context
+- Security error prevention (no permission escalation)
+
+All functions follow established patterns from existing server actions, use proper TypeScript types from `lib/db.types.ts`, integrate with Next.js cache revalidation, and successfully pass TypeScript compilation and ESLint validation. Ready for integration with frontend components in upcoming steps.
 
 [ ] Step 16: IMPORTANT: Enhance `createComment` Action for @Mentions
 **Task**: Modify the `createComment` server action in `lib/actions/artifacts.ts`. After a comment is successfully inserted, parse its `body` for `@mention` patterns (e.g., `@username` or `@user-id`). For each valid mention found, query the `users` table to find the corresponding user ID, and then call a new helper function to create a record in the `notifications` table.

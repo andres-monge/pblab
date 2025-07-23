@@ -50,6 +50,16 @@ export interface UpdateProjectReportContentParams {
 }
 
 /**
+ * Parameters for updating project learning goals
+ */
+export interface UpdateProjectLearningGoalsParams {
+  /** ID of the project to update */
+  projectId: string;
+  /** Learning goals text content */
+  goals: string;
+}
+
+/**
  * Create a new project instance for a team and problem
  * 
  * Associates a team with a specific problem, creating a project
@@ -497,5 +507,119 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
     }
     // Handle unexpected error types
     throw new Error(`Unexpected error updating project report content: ${String(error)}`);
+  }
+}
+
+/**
+ * Update project learning goals
+ * 
+ * Allows students to define and save learning goals during the 'pre' phase
+ * of the PBL workflow. Learning goals help students focus their research
+ * and provide context for AI assistance.
+ * 
+ * @param params - Project learning goals parameters
+ * @returns Promise resolving to success message
+ * @throws Error if user is not authenticated or lacks permission
+ */
+export async function updateProjectLearningGoals(params: UpdateProjectLearningGoalsParams): Promise<string> {
+  const { projectId, goals } = params;
+
+  // Validate required parameters
+  if (!projectId || typeof projectId !== 'string') {
+    throw new Error('Project ID is required and must be a valid string');
+  }
+
+  if (typeof goals !== 'string') {
+    throw new Error('Learning goals must be a string');
+  }
+
+  // Allow empty goals (students can clear their goals)
+  const trimmedGoals = goals.trim();
+
+  try {
+    // Create authenticated Supabase client
+    const supabase = await createClient();
+
+    // Verify user is authenticated
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      throw new Error('User must be authenticated to update learning goals');
+    }
+
+    // Get user role for authorization checks
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('role')
+      .eq('id', user.id)
+      .single();
+
+    if (userError || !userData) {
+      throw new Error('Failed to verify user permissions');
+    }
+
+    // Get project and verify access (RLS will handle permissions)
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select('id, phase, team_id')
+      .eq('id', projectId)
+      .single();
+
+    if (projectError || !project) {
+      throw new Error('Project not found or you do not have permission to access it');
+    }
+
+    // Check if project is closed (prevent editing goals in closed projects)
+    if (project.phase === 'closed') {
+      throw new Error('Cannot update learning goals for a closed project');
+    }
+
+    // Authorization logic based on user role
+    if (userData.role === 'student') {
+      // Students can only update goals for their team projects
+      const { data: membership, error: membershipError } = await supabase
+        .from('teams_users')
+        .select('team_id')
+        .eq('team_id', project.team_id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (membershipError || !membership) {
+        throw new Error('You can only update learning goals for projects of teams you belong to');
+      }
+    } else if (userData.role === 'educator') {
+      // Educators can update goals for projects in their courses (RLS handles this)
+      // If we got the project data, the educator has access
+    } else if (userData.role !== 'admin') {
+      throw new Error('Insufficient permissions to update learning goals for this project');
+    }
+
+    // Update the project learning goals
+    const { error: updateError } = await supabase
+      .from('projects')
+      .update({ 
+        learning_goals: trimmedGoals || null, // Store null for empty goals
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', projectId);
+
+    if (updateError) {
+      console.error('Failed to update project learning goals:', updateError);
+      throw new Error(`Failed to update project learning goals: ${updateError.message}`);
+    }
+
+    // Revalidate relevant paths to reflect learning goals change
+    revalidatePath('/educator/dashboard');
+    revalidatePath('/student/dashboard');
+    revalidatePath('/dashboard');
+    revalidatePath(`/p/${projectId}`);
+
+    return trimmedGoals ? 'Learning goals updated successfully' : 'Learning goals cleared successfully';
+  } catch (error) {
+    // Re-throw with context if it's already an Error object
+    if (error instanceof Error) {
+      throw error;
+    }
+    // Handle unexpected error types
+    throw new Error(`Unexpected error updating project learning goals: ${String(error)}`);
   }
 } 
