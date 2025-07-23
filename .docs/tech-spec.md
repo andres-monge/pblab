@@ -10,9 +10,9 @@
         
     2. **Student Collaboration (PBL Cycle):**
         
-        - **Pre-discussion:** Students join their team, review the problem, and collaboratively define a problem statement and learning goals.
+        - **Pre-discussion:** Students join their team, review the problem, and collaboratively define a problem statement and **learning goals**, with optional AI-powered suggestions.
             
-        - **Self-directed Research:** Students work on the problem, creating and sharing artifacts (documents, links, code). They can use an AI Tutor for Socratic guidance and discuss findings via comments.
+        - **Self-directed Research:** Students work on the problem, creating and sharing artifacts (documents, links, code). They can use a **shared, persistent AI Tutor** for Socratic guidance and discuss findings via comments with **@mentions that trigger notifications**.
             
         - **Post-discussion:** The team synthesizes its findings and submits a final report link for assessment.
             
@@ -28,7 +28,7 @@
         
     - **Storage:** Supabase Storage for file artifacts.
         
-    - **AI:** Google Gemini API for the AI Tutor and Assessment features.
+    - **AI:** Google Gemini API for the AI Tutor, Assessment, and Goal Suggestion features.
         
     - **Hosting:** Vercel for the Next.js application and Supabase Cloud for the database and backend services.
         
@@ -41,68 +41,69 @@
 
 The project will be built upon the provided Next.js starter template. New directories and files will be added to logically separate concerns for the PBLab application.
 
-```
-
 /
 ├── app/
-│   ├── (auth)/                  \# Auth pages (login, signup) - from template
+│   ├── (auth)/                  # Auth pages (login, signup) - from template
 │   ├── (main)/
-│   │   ├── dashboard/           \# Main authenticated app view
-│   │   │   ├── layout.tsx       \# Dashboard layout (sidebar, header)
-│   │   │   └── page.tsx         \# Role-based redirect or default view
-│   │   ├── educator/            \# Educator-specific views
+│   │   ├── dashboard/           # Main authenticated app view
+│   │   │   ├── layout.tsx       # Dashboard layout (sidebar, header)
+│   │   │   └── page.tsx         # Role-based redirect or default view
+│   │   ├── educator/            # Educator-specific views
 │   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx     \# View of all student teams/projects
+│   │   │   │   └── page.tsx     # View of all student teams/projects
 │   │   │   └── problems/
-│   │   │       ├── new/page.tsx \# Form to create a new PBL problem
-│   │   │       └── [id]/page.tsx\# View/edit a problem definition
-│   │   └── student/             \# Student-specific views
+│   │   │       ├── new/page.tsx # Form to create a new PBL problem
+│   │   │       └── [id]/page.tsx# View/edit a problem definition
+│   │   └── student/             # Student-specific views
 │   │       └── dashboard/
-│   │           └── page.tsx     \# View of student's projects
-│   ├── p/[projectId]/           \# Individual project workspace
-│   │   ├── page.tsx             \# Main project view
-│   │   └── layout.tsx           \# Layout specific to a project view
+│   │           └── page.tsx     # View of student's projects
+│   ├── p/[projectId]/           # Individual project workspace
+│   │   ├── page.tsx             # Main project view
+│   │   └── layout.tsx           # Layout specific to a project view
 │   ├── api/
 │   │   ├── ai/
-│   │   │   ├── tutor/route.ts   \# Endpoint for AI PBL Tutor chat
-│   │   │   └── assess/route.ts  \# Endpoint for AI-assisted grading
+│   │   │   ├── tutor/route.ts   # Endpoint for AI PBL Tutor chat
+│   │   │   ├── assess/route.ts  # Endpoint for AI-assisted grading
+│   │   │   └── suggest-goals/route.ts # Endpoint for AI Learning Goal suggestions
 │   │   └── drive/
-│   │       ├── export/route.ts  \# Public Google Sheets export
-│   │       └── picker/route.ts  \# Picker-based file export
-│   ├── layout.tsx               \# Root layout (from template)
-│   └── page.tsx                 \# Public landing page (from template)
+│   │       ├── export/route.ts  # Public Google Sheets export
+│   │       └── picker/route.ts  # Picker-based file export
+│   ├── layout.tsx               # Root layout (from template)
+│   └── page.tsx                 # Public landing page (from template)
 ├── components/
-│   ├── pblab/                   \# PBLab-specific, reusable components
-│   │   ├── header.tsx           \# App header with nav and user menu
-│   │   ├── sidebar.tsx          \# Navigation sidebar for dashboard
-│   │   ├── pblab-logo.tsx       \# PBLab logo component
-│   │   ├── auth/                \# Authentication components
-│   │   │   └── auth-form.tsx    \# Reusable magic link auth form
+│   ├── pblab/                   # PBLab-specific, reusable components
+│   │   ├── header.tsx           # App header with nav, user menu, notifications
+│   │   ├── sidebar.tsx          # Navigation sidebar for dashboard
+│   │   ├── pblab-logo.tsx       # PBLab logo component
+│   │   ├── auth/                # Authentication components
+│   │   │   └── auth-form.tsx    # Reusable magic link auth form
 │   │   ├── project/
 │   │   │   ├── artifact-card.tsx
 │   │   │   ├── artifact-uploader.tsx
 │   │   │   ├── comment-thread.tsx
+│   │   │   ├── learning-goal-editor.tsx
 │   │   │   └── phase-card.tsx
 │   │   ├── educator/
 │   │   │   ├── project-kanban.tsx
 │   │   │   └── rubric-editor.tsx
-│   │   └── ai/
-│   │       └── ai-tutor-chat.tsx
-│   └── ui/                      \# shadcn/ui components (from template)
+│   │   ├── ai/
+│   │   │   └── ai-tutor-chat.tsx
+│   │   └── notifications/
+│   │       └── notifications-indicator.tsx
+│   └── ui/                      # shadcn/ui components (from template)
 ├── lib/
-│   ├── actions/                 \# Server Actions for DB mutations
+│   ├── actions/                 # Server Actions for DB mutations
 │   │   ├── projects.ts
 │   │   ├── teams.ts
-│   │   └── artifacts.ts
-│   ├── db.ts                    \# Supabase client and query helpers
-│   ├── types.ts                 \# Shared TypeScript type definitions
-│   └── utils.ts                 \# Utility functions (from template)
-├── public/                      \# Static assets
+│   │   ├── artifacts.ts
+│   │   └── notifications.ts
+│   ├── db.ts                    # Supabase client and query helpers
+│   ├── types.ts                 # Shared TypeScript type definitions
+│   └── utils.ts                 # Utility functions (from template)
+├── public/                      # Static assets
 ├── scripts/
-│   └── seed.ts                  \# Script to seed DB with sample data
-└── ...                          \# Other config files (from template)
-
-```
+│   └── seed.ts                  # Script to seed DB with sample data
+└── ...                          # Other config files (from template)
 
 ---
 
@@ -168,9 +169,9 @@ The project will be built upon the provided Next.js starter template. New direct
     - User is already on the team: Show "You are already a member of this team."
         
 
-### 3.3 Student: Manage Artifacts and Comments
+### 3.3 Student: Manage Artifacts, Comments, and AI Tutor
 
-- **User Story:** I can upload or link artifacts. I can use an AI Tutor for guidance, which nudges me to provide context. I can also tag teammates on comments to discuss artifacts.
+- **User Story:** I can upload or link artifacts, discuss them with teammates via comments and @mentions, and use a shared AI Tutor for guidance.
     
 - **Implementation Steps:**
     
@@ -180,13 +181,15 @@ The project will be built upon the provided Next.js starter template. New direct
         
     3. **URL Link:** When pasting a Google Drive URL, a tip about sharing permissions is displayed.
         
-    4. **AI Tutor Interaction:** The `<AiTutorChat />` component will be available.
+    4. **AI Tutor Interaction:** The `<AiTutorChat />` component provides a **single, shared, and persistent chat thread** for the entire team.
         
-        - To align with PBL pedagogy and encourage critical thinking, the chat input field will display a **placeholder text** nudging the student to provide context, such as: _"Maximize learning by articulating the context for your question before asking it."_
+        - All team members can view the complete history of questions and answers, fostering a collaborative learning environment.
             
-        - This makes it clear that the AI does not automatically have context from all artifacts and requires the student to practice synthesis and articulation.
+        - The AI has **contextual memory** of the entire conversation for that project, allowing for more relevant and continuous guidance.
             
-    5. Artifacts are displayed in `<ArtifactCard />` components, each with a `<CommentThread />` component that supports `@mentions`.
+    5. **Comments & Notifications:** Artifacts are displayed in `<ArtifactCard />` components, each with a `<CommentThread />`.
+        - Users can type `@username` to mention a teammate.
+        - A valid mention will trigger a **notification** for the mentioned user, visible in the app's main header.
         
 - **Error Handling:**
     
@@ -242,8 +245,22 @@ The project will be built upon the provided Next.js starter template. New direct
     
     - AI call fails or returns malformed data: Return a user-friendly error.
         
-    - Report content not available: Show an error and allow the educator to request a re-submission.
+            - Report content not available: Show an error and allow the educator to request a re-submission.
         
+
+### 3.6 Student: Define Learning Goals with AI Assist
+
+- **User Story:** As a student in the pre-discussion phase, I can collaboratively define our team's learning goals and get AI-powered suggestions to help us get started.
+- **Implementation Steps:**
+    1. During the project's `pre` phase, the project workspace will display a `<LearningGoalEditor />` component.
+    2. This component features a large text area where students can type their learning goals.
+    3. A "Save Goals" button calls the `updateProjectLearningGoals` server action to persist the content in the `projects.learning_goals` field.
+    4. An "AI Suggestions" button calls the new `POST /api/ai/suggest-goals` API route.
+    5. The API provides the AI with the problem's title and description to generate relevant, high-quality learning goal suggestions.
+    6. The suggestions are displayed to the student, who can then copy, edit, and incorporate them into the main goals editor.
+- **Error Handling:**
+    - AI call fails: Show a user-friendly error message.
+    - Saving fails: Inform the user and allow them to retry.
 
 ---
 
@@ -251,7 +268,14 @@ The project will be built upon the provided Next.js starter template. New direct
 
 The database will be managed via SQL scripts. RLS policies will be used for authorization.
 
-### 4.1 Tables
+### 4.1 Schema Modifications
+
+**`projects` table:**
+```sql
+ALTER TABLE public.projects ADD COLUMN learning_goals TEXT;
+```
+
+### 4.2 Tables
 
 SQL
 
@@ -264,6 +288,9 @@ CREATE TYPE project_phase AS ENUM ('pre', 'research', 'post', 'closed');
 
 -- Assessment status ENUM
 CREATE TYPE assessment_status AS ENUM ('pending_review', 'final');
+
+-- Notification type ENUM
+CREATE TYPE notification_type AS ENUM ('mention_in_comment');
 
 -- Users table, managed by Supabase Auth
 -- The public.users table is a simplified view of auth.users
@@ -315,6 +342,7 @@ CREATE TABLE projects (
     problem_id UUID NOT NULL REFERENCES problems(id) ON DELETE CASCADE,
     team_id UUID NOT NULL REFERENCES teams(id) ON DELETE CASCADE,
     phase project_phase NOT NULL DEFAULT 'pre',
+    learning_goals TEXT, -- Student-defined learning goals
     problem_statement_url TEXT, -- Link to Google Doc or similar
     final_report_url TEXT,
     final_report_content TEXT, -- Cached plain text content from Google Drive
@@ -360,12 +388,26 @@ CREATE TABLE comments (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- Notifications for mentions and other events
+CREATE TABLE public.notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipient_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    actor_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+    type notification_type NOT NULL,
+    reference_id UUID NOT NULL, -- The comment ID
+    reference_url TEXT, -- A deep link to the comment
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX idx_notifications_recipient_id ON public.notifications(recipient_id);
+
+
 -- Log of AI interactions
 CREATE TABLE ai_usage (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-    feature TEXT NOT NULL, -- e.g., 'tutor', 'assessment'
+    feature TEXT NOT NULL, -- e.g., 'tutor', 'assessment', 'suggest_goals'
     prompt JSONB,
     response JSONB,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -409,13 +451,19 @@ Server actions will be the primary mechanism for client components to mutate dat
     
 - **`updateProjectReportContent(projectId, url, content)`**: Sets both the final report URL and caches the plain text content.
     
+- **`updateProjectLearningGoals(projectId, goals)`**: Saves the student-defined learning goals to the project.
+    
 - **`createArtifact(data)`**: Creates a new artifact record. Input: `{ projectId, uploaderId, title, url, type }`.
     
 - **`deleteArtifact(artifactId)`**: Deletes an artifact. Checks if the user is the owner or an educator.
     
-- **`createComment(data)`**: Creates a new comment. Input: `{ artifactId, authorId, body }`.
+- **`createComment(data)`**: Creates a new comment. Input: `{ artifactId, authorId, body }`. **After saving, it parses the body for `@mentions` and creates records in the `notifications` table.**
     
 - **`createProblem(data)`**: A transactional server action to create a problem and its associated rubric/criteria.
+    
+- **`getNotifications(userId)`**: Fetches all notifications for the given user, typically filtered for unread.
+    
+- **`markNotificationAsRead(notificationId)`**: Marks a specific notification as read.
     
 
 ### 5.2 API Routes (`app/api/**/*`)
@@ -430,9 +478,9 @@ Server actions will be the primary mechanism for client components to mutate dat
         
         1. Authenticate user and verify they are part of the project.
             
-        2. Fetch project context (description) and conversation history from `ai_usage`.
+        2. **Fetch the full conversation history for the `projectId` from `ai_usage` where the `feature` is 'tutor'.**
             
-        3. Construct a prompt with history and a system message for Socratic guidance.
+        3. Construct a prompt including the fetched history and a system message for Socratic guidance.
             
         4. Call Gemini API.
             
@@ -442,6 +490,28 @@ Server actions will be the primary mechanism for client components to mutate dat
             
     - **Response Body:** `{ "reply": "string" }`
         
+- **`POST /api/ai/suggest-goals`**
+    
+    - **Purpose:** Provides AI-powered suggestions for learning goals.
+        
+    - **Request Body:** `{ "projectId": "uuid" }`
+        
+    - **Process:**
+        
+        1. Authenticate user and verify they are part of the project.
+            
+        2. Fetch the associated problem's title and description from the database to use as context.
+            
+        3. Construct a prompt asking the AI to generate 3-5 high-quality learning goals based on the problem context.
+            
+        4. Call Gemini API.
+            
+        5. Log the interaction in `ai_usage`.
+            
+        6. Return the suggested goals as an array of strings.
+            
+    - **Response Body:** `{ "suggestions": ["string", "string", ...] }`
+    
 - **`POST /api/ai/assess`**
     
     - **Purpose:** Initiates or refines an AI-powered assessment.
@@ -709,6 +779,38 @@ function getExportFormat(mimeType: string): string {
 
 ### 8.2 Client Components
 
+- **`AiTutorChat` (`components/pblab/ai/ai-tutor-chat.tsx`):**
+    
+    - **State Management:** Uses `useState` to manage the input message and conversation history.
+        
+    - **Data Fetching:** On initial load, fetches the full, shared conversation history for the current project.
+        
+    - **Event Handlers:** `handleSendMessage()` calls the `/api/ai/tutor` endpoint and appends the new message and reply to the local state.
+        
+    - **Props:** `interface Props { projectId: string; initialHistory: Message[]; }`
+        
+- **`LearningGoalEditor` (`components/pblab/project/learning-goal-editor.tsx`):**
+    
+    - **State Management:** Uses `useState` to manage the learning goals text and AI-suggested goals.
+        
+    - **Event Handlers:**
+        
+        - `handleSave()`: Calls the `updateProjectLearningGoals` server action.
+            
+        - `handleGetSuggestions()`: Calls the `/api/ai/suggest-goals` endpoint and updates state with suggestions.
+            
+    - **Props:** `interface Props { projectId: string; initialGoals: string | null; }`
+        
+- **`NotificationsIndicator` (`components/pblab/notifications/notifications-indicator.tsx`):**
+    
+    - **State Management:** Manages the visibility of the notification panel and the list of notifications.
+        
+    - **Data Fetching:** Fetches the count of unread notifications on load and potentially polls for updates.
+        
+    - **Event Handlers:** `handleMarkAsRead()` calls the `markNotificationAsRead` server action when a notification is clicked.
+        
+    - **Props:** `interface Props { initialNotifications: Notification[]; }`
+        
 - **`RubricEditor` (`components/pblab/educator/rubric-editor.tsx`):**
     
     - **State Management:** Uses `useState` to manage the scores, justifications, and AI feedback text.
@@ -754,6 +856,7 @@ function getExportFormat(mimeType: string): string {
     ALTER TABLE artifacts ENABLE ROW LEVEL SECURITY;
     ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
     ALTER TABLE problems ENABLE ROW LEVEL SECURITY;
+    ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
     
     -- Helper function to get user role
     CREATE OR REPLACE FUNCTION get_my_role()
@@ -780,6 +883,16 @@ function getExportFormat(mimeType: string): string {
     CREATE POLICY "Allow team members to manage artifacts"
     ON artifacts FOR ALL
     USING (project_id IN (SELECT id FROM projects)); -- The SELECT policy on projects will cascade down.
+    
+    -- Policy: Users can only see their own notifications.
+    CREATE POLICY "Allow users to see their own notifications"
+    ON notifications FOR SELECT
+    USING (recipient_id = auth.uid());
+    
+    -- Policy: Users can only mark their own notifications as read.
+    CREATE POLICY "Allow users to update their own notifications"
+    ON notifications FOR UPDATE
+    USING (recipient_id = auth.uid()) WITH CHECK (recipient_id = auth.uid());
     ```
     
 

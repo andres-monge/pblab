@@ -317,76 +317,106 @@ This section deals with creating the backend logic for data manipulation and ext
 - JWT-specific error handling with clear messages
 - Security error prevention (no permission escalation)
 
-All functions follow existing patterns from `ai.ts`, use proper TypeScript types from `lib/db.types.ts`, and integrate with Next.js cache revalidation. Ready for frontend integration in Steps 13-20.
+All functions follow existing patterns from `ai.ts`, use proper TypeScript types from `lib/db.types.ts`, and integrate with Next.js cache revalidation. 
 
-[ ] Step 13: Create API Route for AI Tutor
-**Task**: Create the API route `app/api/ai/tutor/route.ts`. This route will handle POST requests, construct a prompt with history, call the Gemini API, and use the `logAiUsage` helper to log the interaction before returning the response.
-**Suggested Files for Context**: `lib/actions/ai.ts`, `lib/db.types.ts`, `lib/supabase/server.ts`
-**Step Dependencies**: Step 11, Step 12
+-----
+
+## Phase 4: Backend Enhancements (New Features)
+
+This phase adds the backend infrastructure for the new Learning Goals, AI Tutor Memory, and Notification features.
+
+[ ] Step 13: Enhance Database Schema for New Features
+**Task**: Create a new SQL migration file (`supabase/migrations/YYYYMMDDHHMMSS_feature_enhancements.sql`) that: 1. Adds the `learning_goals TEXT` column to the `projects` table. 2. Creates the `notification_type` ENUM. 3. Creates the `notifications` table with all specified columns and an index on `recipient_id`. 4. Enables RLS on the `notifications` table. Run `supabase migration new feature_enhancements` to create the file, then populate it and run `npx supabase db push`.
+**Suggested Files for Context**: `.docs/tech-spec.md`, `supabase/migrations/20250722133352_initial_schema.sql`
+**Step Dependencies**: Step 12
+**User Instructions**: None
+
+[ ] Step 14: Implement RLS Policies for Notifications & Regenerate Types
+**Task**: Create another SQL migration file to add the RLS policies for the new `notifications` table, ensuring users can only access their own notifications. Run `supabase migration new notifications_rls` for the policy file. After applying the migration, run the `npm run types:gen` command to update `lib/db.types.ts` with the new schema changes.
+**Suggested Files for Context**: `.docs/tech-spec.md`, `supabase/migrations/0002_rls_policies.sql`, `package.json`
+**Step Dependencies**: Step 13
+**User Instructions**: None
+
+[ ] Step 15: Implement Server Actions for Learning Goals and Notifications
+**Task**: 1. In `lib/actions/projects.ts`, add a new server action `updateProjectLearningGoals({ projectId, goals })`. 2. Create a new file `lib/actions/notifications.ts` and implement two server actions: `getNotifications()` to fetch the current user's unread notifications, and `markNotificationAsRead({ notificationId })`.
+**Suggested Files for Context**: `lib/actions/projects.ts`, `lib/db.types.ts`, `lib/supabase/server.ts`
+**Step Dependencies**: Step 14
+**User Instructions**: None
+
+[ ] Step 16: Enhance `createComment` Action for @Mentions
+**Task**: Modify the `createComment` server action in `lib/actions/artifacts.ts`. After a comment is successfully inserted, parse its `body` for `@mention` patterns (e.g., `@username` or `@user-id`). For each valid mention found, query the `users` table to find the corresponding user ID, and then call a new helper function to create a record in the `notifications` table.
+**Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`, `lib/db.types.ts`
+**Step Dependencies**: Step 15
+**User Instructions**: None
+
+[ ] Step 17: Create API Route for AI-Powered Goal Suggestions
+**Task**: Create the API route at `app/api/ai/suggest-goals/route.ts`. This `POST` route should accept a `projectId`, fetch the associated problem's title and description for context, call the Gemini API to generate suggestions, log the interaction using `logAiUsage`, and return the suggestions.
+**Suggested Files for Context**: `.docs/tech-spec.md`, `lib/actions/ai.ts`, `lib/db.types.ts`
+**Step Dependencies**: Step 12
 **User Instructions**: Ensure your `GEMINI_API_KEY` is set in `.env.local`.
 
-[ ] Step 14: IMPORTANT: Create API Route for AI Assessment
-**Task**: Create the API route `app/api/ai/assess/route.ts`. This route will handle generating and regenerating rubric assessments via Gemini Function calling, save the results, and use the `logAiUsage` helper.
-**Suggested Files for Context**: `lib/actions/ai.ts`, `lib/db.types.ts`, `lib/supabase/server.ts`
-**Step Dependencies**: Step 11, Step 12
-**User Instructions**: None
-
-[ ] Step 15: IMPORTANT: Create API Routes for Google Drive
-**Task**: Create `app/api/drive/export/route.ts` and `app/api/drive/picker/route.ts` to handle the hybrid Google Drive integration strategy.
-**Suggested Files for Context**: `lib/db.types.ts`
-**Step Dependencies**: Step 8
-**User Instructions**: Set up a Google Cloud Project, enable the Google Drive API, and add OAuth 2.0 credentials to your `.env.local` file.
-
------
-
-## Phase 4: Frontend: Layouts & Feature Implementation
-
-This section focuses on building the UI, from shared layouts to specific feature components.
-
-[ ] Step 16: Create Main App Layout and Role-Based Redirect
-**Task**: Create the main authenticated layout at `app/(main)/layout.tsx` with `<Sidebar />` and `<Header />` components. Then, implement the dashboard redirect page at `app/(main)/dashboard/page.tsx` to route users based on their role.
-**Suggested Files for Context**: `app/protected/layout.tsx`, `components/auth-button.tsx`, `lib/supabase/server.ts`
-**Step Dependencies**: Step 10
-**User Instructions**: None
-
-[ ] Step 17: Create Student and Educator Dashboards
-**Task**: Create the student dashboard at `app/(main)/student/dashboard/page.tsx` to list their projects. Create the educator dashboard at `app/(main)/educator/dashboard/page.tsx` containing the `<ProjectKanban />` component to view teams' progress.
-**Suggested Files for Context**: `lib/db.types.ts`, `app/(main)/layout.tsx`
-**Step Dependencies**: Step 16
-**User Instructions**: None
-
-[ ] Step 18: IMPORTANT: Educator - Create Problem Page and Rubric Editor
-**Task**: Create the "New Problem" page at `app/(main)/educator/problems/new/page.tsx`. Implement the reusable `<RubricEditor />` component (`components/pblab/educator/rubric-editor.tsx`) which will be used here in "template" mode and later in "grading" mode.
-**Suggested Files for Context**: `lib/actions/problems.ts`, `lib/db.types.ts`
-**Step Dependencies**: Step 12, Step 17
-**User Instructions**: None
-
-[ ] Step 19: Student - Project Workspace and Components
-**Task**: Create the project workspace page at `app/p/[projectId]/page.tsx`. Implement the child components: `<ArtifactUploader />`, `<ArtifactCard />`, `<CommentThread />`, and the `<AiTutorChat />` interface. Wire them up to their respective server actions and API routes.
-**Suggested Files for Context**: `lib/actions/artifacts.ts`, `app/api/ai/tutor/route.ts`
-**Step Dependencies**: Step 12, Step 13, Step 17
-**User Instructions**: Configure a "artifacts" bucket in Supabase Storage with the appropriate RLS policies.
-
-[ ] Step 20: IMPORTANT: Educator - AI Assessment Grading View
-**Task**: Extend the `<RubricEditor />` to handle grading mode. This view will appear on the project page for educators when a report is submitted. It should allow for generating, editing, regenerating, and finalizing AI-assisted grades.
-**Suggested Files for Context**: `components/pblab/educator/rubric-editor.tsx`, `app/api/ai/assess/route.ts`
-**Step Dependencies**: Step 14, Step 18, Step 19
+[ ] Step 18: Update AI Tutor API for Contextual Memory
+**Task**: Modify the `app/api/ai/tutor/route.ts` file. Update the `POST` handler to query the `ai_usage` table for all previous 'tutor' interactions associated with the `projectId`. Format this history and prepend it to the new prompt before sending it to the Gemini API.
+**Suggested Files for Context**: `app/api/ai/tutor/route.ts` (or create if not existing), `lib/actions/ai.ts`, `lib/db.types.ts`
+**Step Dependencies**: Step 12
 **User Instructions**: None
 
 -----
 
-## Phase 5: Testing
+## Phase 5: Frontend Implementation
+
+This phase focuses on building the UI for all features, including the new enhancements.
+
+[ ] Step 19: Create Main App Layout (Header and Sidebar)
+**Task**: Create the main authenticated layout at `app/(main)/layout.tsx`. This will involve creating two new reusable components: `<Header />` in `components/pblab/header.tsx` and `<Sidebar />` in `components/pblab/sidebar.tsx`. The layout should establish the main two-column structure of the app.
+**Suggested Files for Context**: `app/page.tsx`, `components/auth-button.tsx`, `lib/supabase/server.ts`
+**Step Dependencies**: Step 12
+**User Instructions**: None
+
+[ ] Step 20: Implement Role-Based Dashboard and Redirects
+**Task**: Create the student dashboard at `app/(main)/student/dashboard/page.tsx` and the educator dashboard at `app/(main)/educator/dashboard/page.tsx`. Implement the role-based redirect at `app/(main)/dashboard/page.tsx` that navigates users to the correct dashboard based on their role from Supabase Auth.
+**Suggested Files for Context**: `lib/db.types.ts`, `app/(main)/layout.tsx`, `lib/supabase/server.ts`
+**Step Dependencies**: Step 19
+**User Instructions**: None
+
+[ ] Step 21: Implement Notifications UI
+**Task**: 1. Create the `<NotificationsIndicator />` component in `components/pblab/notifications/`. It should use the `getNotifications` server action to fetch data and display a badge with the unread count. 2. Clicking the indicator should open a dropdown panel listing notifications with links. 3. Integrate `<NotificationsIndicator />` into the `<Header />` component. 4. Clicking a notification should navigate to its `reference_url` and call the `markNotificationAsRead` action.
+**Suggested Files for Context**: `components/pblab/header.tsx`, `lib/actions/notifications.ts`, `lib/db.types.ts`
+**Step Dependencies**: Step 16, Step 19
+**User Instructions**: None
+
+[ ] Step 22: Implement Project Workspace with Learning Goal Editor
+**Task**: Create the main project workspace page at `app/p/[projectId]/page.tsx`. Implement the `<LearningGoalEditor />` component (`components/pblab/project/learning-goal-editor.tsx`) and display it when the project is in the 'pre' phase. Wire its "Save" button to the `updateProjectLearningGoals` action and its "AI Suggestions" button to the `/api/ai/suggest-goals` API route.
+**Suggested Files for Context**: `lib/actions/projects.ts`, `app/api/ai/suggest-goals/route.ts`, `lib/db.types.ts`
+**Step Dependencies**: Step 15, Step 17
+**User Instructions**: None
+
+[ ] Step 23: Update AI Tutor Chat UI for Shared History
+**Task**: Update the `<AiTutorChat />` component (`components/pblab/ai/ai-tutor-chat.tsx`). It should now fetch the full, shared conversation history for the project on load and render it. Ensure the UI makes it clear that the chat is a shared resource for the team. The form submission will continue to use the updated `/api/ai/tutor` endpoint.
+**Suggested Files for Context**: `components/pblab/ai/ai-tutor-chat.tsx`, `app/api/ai/tutor/route.ts`
+**Step Dependencies**: Step 18
+**User Instructions**: None
+
+[ ] Step 24: Implement Remaining Project Workspace Components
+**Task**: On the project page (`app/p/[projectId]/page.tsx`), implement the remaining components for the core workflow: `<ArtifactUploader />`, `<ArtifactCard />`, and `<CommentThread />`. Wire up the comment form to the `createComment` server action, which now handles @mentions.
+**Suggested Files for Context**: `lib/actions/artifacts.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`
+**Step Dependencies**: Step 16, Step 22
+**User Instructions**: Configure a "artifacts" bucket in Supabase Storage with appropriate RLS policies.
+
+-----
+
+## Phase 6: Finalization and Testing
 
 This section includes steps for creating tests to ensure application quality and correctness.
 
-[ ] Step 21: Setup and Write Unit Tests
-**Task**: Configure Jest for unit testing. Create tests for key server actions, such as testing the file-type validation in `createArtifact` (T-03) and ensuring the `logAiUsage` helper is called correctly from the AI tutor route (T-02).
-**Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/ai.ts`, `app/api/ai/tutor/route.ts`
-**Step Dependencies**: Step 11, Step 12
-**User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and `npm test`.
+[ ] Step 25: Setup and Write Unit Tests
+**Task**: Configure Jest for unit testing. Create tests for key new server actions. For example, test the mention-parsing logic in `createComment`, and ensure `getNotifications` correctly respects RLS (by mocking the user).
+**Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`, `.docs/tech-spec.md`
+**Step Dependencies**: All backend feature steps.
+**User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and then run `npm test`.
 
-[ ] Step 22: IMPORTANT: Setup and Write E2E Tests
-**Task**: Configure Playwright for end-to-end testing with magic link authentication support. Implement the critical user flow tests T-01 (Student can join team via invite) and T-04 (Educator feedback locks project editing). For magic link authentication testing, use Supabase Admin API to generate direct login tokens for test users instead of handling email magic links, or configure a test email service to capture and parse magic link emails.
+[ ] Step 26: Setup and Write E2E Tests
+**Task**: Configure Playwright for end-to-end testing. Implement tests for the new feature flows: 1. A user posts a comment with an @mention, and the mentioned user receives a notification. 2. A user interacts with the Learning Goal Editor and successfully gets AI suggestions. 3. The AI Tutor chat loads and displays a shared history.
 **Suggested Files for Context**: All relevant page and component files for these flows.
 **Step Dependencies**: All feature steps.
-**User Instructions**: Run `npm init playwright@latest` and `npx playwright test`. Consider setting up test-specific authentication helpers that bypass email magic links for reliable testing.
+**User Instructions**: Run `npm init playwright@latest`. Consider using the Supabase Admin API to generate direct login tokens for test users to bypass email magic links.
