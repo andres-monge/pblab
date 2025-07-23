@@ -343,11 +343,25 @@ This phase adds the backend infrastructure for the new Learning Goals, AI Tutor 
 - Migration follows established patterns with comprehensive documentation and comments
 - Database now ready for Learning Goals, @mention notifications, and AI Tutor contextual memory features
 
-[ ] Step 14: Implement RLS Policies for Notifications & Regenerate Types
+[x] Step 14: Implement RLS Policies for Notifications & Regenerate Types ✅ COMPLETED
 **Task**: Create another SQL migration file to add the RLS policies for the new `notifications` table, ensuring users can only access their own notifications. Run `supabase migration new notifications_rls` for the policy file. After applying the migration, run the `npm run types:gen` command to update `lib/db.types.ts` with the new schema changes.
 **Suggested Files for Context**: `.docs/tech-spec.md`, `supabase/migrations/0002_rls_policies.sql`, `package.json`
 **Step Dependencies**: Step 13
 **User Instructions**: None
+**Implementation Notes**: Successfully created comprehensive RLS policies migration for notifications:
+- Created migration file `20250723095857_notifications_rls.sql` using `supabase migration new notifications_rls` command
+- Implemented 3 core RLS policies following established patterns:
+  * `"Users can view their own notifications"` - SELECT policy using `recipient_id = auth.uid()` for fetching notification lists
+  * `"Users can update their own notifications"` - UPDATE policy with USING and WITH CHECK clauses for marking as read
+  * `"Users can create notifications"` - INSERT policy with `actor_id = auth.uid()` check for @mention functionality
+- Applied migration successfully with `npx supabase db push` (migration shows as applied)
+- Regenerated TypeScript types with `npm run types:gen` - verified all new schema elements are included:
+  * `notifications` table with complete Row/Insert/Update interfaces and foreign key relationships
+  * `learning_goals` column added to `projects` table as nullable string
+  * `notification_type` ENUM with `'mention_in_comment'` value properly typed
+- Verified successful TypeScript compilation with `npm run build` (0 errors)
+- Database now fully secured with proper RLS policies enabling safe notification access patterns
+- Types are ready for use in upcoming server actions and UI components
 
 [ ] Step 15: Implement Server Actions for Learning Goals and Notifications
 **Task**: 1. In `lib/actions/projects.ts`, add a new server action `updateProjectLearningGoals({ projectId, goals })`. 2. Create a new file `lib/actions/notifications.ts` and implement two server actions: `getNotifications()` to fetch the current user's unread notifications, and `markNotificationAsRead({ notificationId })`.

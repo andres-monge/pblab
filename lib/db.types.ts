@@ -259,6 +259,54 @@ export type Database = {
           },
         ]
       }
+      notifications: {
+        Row: {
+          actor_id: string
+          created_at: string
+          id: string
+          is_read: boolean
+          recipient_id: string
+          reference_id: string
+          reference_url: string | null
+          type: Database["public"]["Enums"]["notification_type"]
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_id: string
+          reference_id: string
+          reference_url?: string | null
+          type: Database["public"]["Enums"]["notification_type"]
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          recipient_id?: string
+          reference_id?: string
+          reference_url?: string | null
+          type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       problems: {
         Row: {
           course_id: string | null
@@ -307,6 +355,7 @@ export type Database = {
           final_report_content: string | null
           final_report_url: string | null
           id: string
+          learning_goals: string | null
           phase: Database["public"]["Enums"]["project_phase"]
           problem_id: string
           problem_statement_url: string | null
@@ -318,6 +367,7 @@ export type Database = {
           final_report_content?: string | null
           final_report_url?: string | null
           id?: string
+          learning_goals?: string | null
           phase?: Database["public"]["Enums"]["project_phase"]
           problem_id: string
           problem_statement_url?: string | null
@@ -329,6 +379,7 @@ export type Database = {
           final_report_content?: string | null
           final_report_url?: string | null
           id?: string
+          learning_goals?: string | null
           phase?: Database["public"]["Enums"]["project_phase"]
           problem_id?: string
           problem_statement_url?: string | null
@@ -508,6 +559,7 @@ export type Database = {
     }
     Enums: {
       assessment_status: "pending_review" | "final"
+      notification_type: "mention_in_comment"
       project_phase: "pre" | "research" | "post" | "closed"
       user_role: "student" | "educator" | "admin"
     }
@@ -638,6 +690,7 @@ export const Constants = {
   public: {
     Enums: {
       assessment_status: ["pending_review", "final"],
+      notification_type: ["mention_in_comment"],
       project_phase: ["pre", "research", "post", "closed"],
       user_role: ["student", "educator", "admin"],
     },
