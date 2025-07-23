@@ -325,11 +325,23 @@ All functions follow existing patterns from `ai.ts`, use proper TypeScript types
 
 This phase adds the backend infrastructure for the new Learning Goals, AI Tutor Memory, and Notification features.
 
-[ ] Step 13: Enhance Database Schema for New Features
+[x] Step 13: Enhance Database Schema for New Features ✅ COMPLETED
 **Task**: Create a new SQL migration file (`supabase/migrations/YYYYMMDDHHMMSS_feature_enhancements.sql`) that: 1. Adds the `learning_goals TEXT` column to the `projects` table. 2. Creates the `notification_type` ENUM. 3. Creates the `notifications` table with all specified columns and an index on `recipient_id`. 4. Enables RLS on the `notifications` table. Run `supabase migration new feature_enhancements` to create the file, then populate it and run `npx supabase db push`.
 **Suggested Files for Context**: `.docs/tech-spec.md`, `supabase/migrations/20250722133352_initial_schema.sql`
 **Step Dependencies**: Step 12
 **User Instructions**: None
+**Implementation Notes**: Successfully created and applied comprehensive feature enhancements migration:
+- Created migration file `20250723094410_feature_enhancements.sql` using `supabase migration new feature_enhancements` command
+- Added `learning_goals TEXT` column to `projects` table to enable student-defined learning goals during 'pre' phase
+- Created `notification_type` ENUM with `'mention_in_comment'` value for extensible notification system
+- Implemented complete `notifications` table with all required columns:
+  * `id`, `recipient_id`, `actor_id`, `type`, `reference_id`, `reference_url`, `is_read`, `created_at`
+  * Proper foreign key constraints to `public.users` table with CASCADE delete
+  * Performance index `idx_notifications_recipient_id` for efficient user notification queries
+- Enabled Row Level Security (RLS) on notifications table for security
+- Applied migration successfully with `npx supabase db push` (migration shows as applied both locally and remotely)
+- Migration follows established patterns with comprehensive documentation and comments
+- Database now ready for Learning Goals, @mention notifications, and AI Tutor contextual memory features
 
 [ ] Step 14: Implement RLS Policies for Notifications & Regenerate Types
 **Task**: Create another SQL migration file to add the RLS policies for the new `notifications` table, ensuring users can only access their own notifications. Run `supabase migration new notifications_rls` for the policy file. After applying the migration, run the `npm run types:gen` command to update `lib/db.types.ts` with the new schema changes.
@@ -343,19 +355,19 @@ This phase adds the backend infrastructure for the new Learning Goals, AI Tutor 
 **Step Dependencies**: Step 14
 **User Instructions**: None
 
-[ ] Step 16: Enhance `createComment` Action for @Mentions
+[ ] Step 16: IMPORTANT: Enhance `createComment` Action for @Mentions
 **Task**: Modify the `createComment` server action in `lib/actions/artifacts.ts`. After a comment is successfully inserted, parse its `body` for `@mention` patterns (e.g., `@username` or `@user-id`). For each valid mention found, query the `users` table to find the corresponding user ID, and then call a new helper function to create a record in the `notifications` table.
 **Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 15
 **User Instructions**: None
 
-[ ] Step 17: Create API Route for AI-Powered Goal Suggestions
+[ ] Step 17: IMPORTANT: Create API Route for AI-Powered Goal Suggestions
 **Task**: Create the API route at `app/api/ai/suggest-goals/route.ts`. This `POST` route should accept a `projectId`, fetch the associated problem's title and description for context, call the Gemini API to generate suggestions, log the interaction using `logAiUsage`, and return the suggestions.
 **Suggested Files for Context**: `.docs/tech-spec.md`, `lib/actions/ai.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 12
 **User Instructions**: Ensure your `GEMINI_API_KEY` is set in `.env.local`.
 
-[ ] Step 18: Update AI Tutor API for Contextual Memory
+[ ] Step 18: IMPORTANT: Update AI Tutor API for Contextual Memory
 **Task**: Modify the `app/api/ai/tutor/route.ts` file. Update the `POST` handler to query the `ai_usage` table for all previous 'tutor' interactions associated with the `projectId`. Format this history and prepend it to the new prompt before sending it to the Gemini API.
 **Suggested Files for Context**: `app/api/ai/tutor/route.ts` (or create if not existing), `lib/actions/ai.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 12
@@ -385,13 +397,13 @@ This phase focuses on building the UI for all features, including the new enhanc
 **Step Dependencies**: Step 16, Step 19
 **User Instructions**: None
 
-[ ] Step 22: Implement Project Workspace with Learning Goal Editor
+[ ] Step 22: IMPORTANT: Implement Project Workspace with Learning Goal Editor
 **Task**: Create the main project workspace page at `app/p/[projectId]/page.tsx`. Implement the `<LearningGoalEditor />` component (`components/pblab/project/learning-goal-editor.tsx`) and display it when the project is in the 'pre' phase. Wire its "Save" button to the `updateProjectLearningGoals` action and its "AI Suggestions" button to the `/api/ai/suggest-goals` API route.
 **Suggested Files for Context**: `lib/actions/projects.ts`, `app/api/ai/suggest-goals/route.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 15, Step 17
 **User Instructions**: None
 
-[ ] Step 23: Update AI Tutor Chat UI for Shared History
+[ ] Step 23: IMPORTANT: Update AI Tutor Chat UI for Shared History
 **Task**: Update the `<AiTutorChat />` component (`components/pblab/ai/ai-tutor-chat.tsx`). It should now fetch the full, shared conversation history for the project on load and render it. Ensure the UI makes it clear that the chat is a shared resource for the team. The form submission will continue to use the updated `/api/ai/tutor` endpoint.
 **Suggested Files for Context**: `components/pblab/ai/ai-tutor-chat.tsx`, `app/api/ai/tutor/route.ts`
 **Step Dependencies**: Step 18
@@ -415,7 +427,7 @@ This section includes steps for creating tests to ensure application quality and
 **Step Dependencies**: All backend feature steps.
 **User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and then run `npm test`.
 
-[ ] Step 26: Setup and Write E2E Tests
+[ ] Step 26: IMPORTANT: Setup and Write E2E Tests
 **Task**: Configure Playwright for end-to-end testing. Implement tests for the new feature flows: 1. A user posts a comment with an @mention, and the mentioned user receives a notification. 2. A user interacts with the Learning Goal Editor and successfully gets AI suggestions. 3. The AI Tutor chat loads and displays a shared history.
 **Suggested Files for Context**: All relevant page and component files for these flows.
 **Step Dependencies**: All feature steps.
