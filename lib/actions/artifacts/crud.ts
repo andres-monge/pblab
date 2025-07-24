@@ -3,6 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { validateFileType, validateUrlFormat } from "@/lib/security/file-validation";
+import { 
+  getAuthenticatedUser, 
+  verifyProjectAccess, 
+  verifyArtifactPermissions
+} from "@/lib/actions/shared/authorization";
+import { validateProjectNotClosed } from "@/lib/shared/authorization-utils";
 import type { CreateArtifactParams, DeleteArtifactParams, Artifact } from './index';
 
 /**
@@ -50,55 +56,14 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
   }
 
   try {
-    // Create authenticated Supabase client
-    const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to create artifacts');
-    }
-
-    // Verify project exists and user has access (RLS will handle permissions)
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id, team_id, phase')
-      .eq('id', projectId)
-      .single();
-
-    if (projectError || !project) {
-      throw new Error('Project not found or you do not have permission to access it');
-    }
-
+    // Verify user authentication and project access
+    const user = await getAuthenticatedUser();
+    const project = await verifyProjectAccess(projectId, user.id, user.role);
+    
     // Check if project is closed (prevent artifact creation in closed projects)
-    if (project.phase === 'closed') {
-      throw new Error('Cannot add artifacts to a closed project');
-    }
+    validateProjectNotClosed(project.phase, 'add artifacts to');
 
-    // For students, verify they are team members (educators can add to any project in their courses)
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    if (userData.role === 'student') {
-      // Verify student is a member of this project's team
-      const { data: membership, error: membershipError } = await supabase
-        .from('teams_users')
-        .select('team_id')
-        .eq('team_id', project.team_id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (membershipError || !membership) {
-        throw new Error('You can only add artifacts to projects of teams you belong to');
-      }
-    }
+    const supabase = await createClient();
 
     // Create the artifact
     const artifactData: Artifact = {
@@ -156,14 +121,10 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to delete artifacts');
-    }
 
     // Get artifact details with project and team info
     const { data: artifact, error: artifactError } = await supabase
@@ -188,50 +149,16 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
     }
 
     // Check if project is closed (prevent deletion in closed projects)
-    if (artifact.projects.phase === 'closed') {
-      throw new Error('Cannot delete artifacts from a closed project');
-    }
+    validateProjectNotClosed(artifact.projects.phase, 'delete artifacts from');
 
-    // Get user role for authorization checks
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    // Authorization logic
-    let canDelete = false;
-
-    if (userData.role === 'admin') {
-      // Admins can delete any artifact
-      canDelete = true;
-    } else if (userData.role === 'educator') {
-      // Educators can delete artifacts from projects in their courses (RLS handles this)
-      canDelete = true;
-    } else if (userData.role === 'student') {
-      // Students can only delete their own artifacts from their team projects
-      if (artifact.uploader_id === user.id) {
-        // Verify student is a member of the project's team
-        const { data: membership, error: membershipError } = await supabase
-          .from('teams_users')
-          .select('team_id')
-          .eq('team_id', artifact.projects.team_id)
-          .eq('user_id', user.id)
-          .single();
-
-        if (!membershipError && membership) {
-          canDelete = true;
-        }
-      }
-    }
-
-    if (!canDelete) {
-      throw new Error('You can only delete artifacts you uploaded, or you must be an educator for this course');
-    }
+    // Verify user has permission to delete this artifact
+    await verifyArtifactPermissions(
+      user.id,
+      user.role,
+      artifact.uploader_id,
+      artifact.projects.team_id,
+      true // requireOwnership = true for delete operations
+    );
 
     // Delete the artifact
     const { error: deleteError } = await supabase

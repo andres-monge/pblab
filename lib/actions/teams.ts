@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import jwt from "jsonwebtoken";
 import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
+import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
+import { requireProjectCreationPermissions } from "@/lib/shared/authorization-utils";
 
 type TeamsUser = Database["public"]["Tables"]["teams_users"]["Insert"];
 
@@ -54,14 +56,10 @@ export async function joinTeam(params: JoinTeamParams): Promise<string> {
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to join a team');
-    }
 
     // Check if team exists and get team info
     const { data: team, error: teamError } = await supabase
@@ -140,30 +138,11 @@ export async function generateInviteToken(params: GenerateInviteTokenParams): Pr
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication and permissions
+    const user = await getAuthenticatedUser();
+    requireProjectCreationPermissions(user.role);
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to generate invite tokens');
-    }
-
-    // Get user role to ensure they can create invites
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    // Only educators and admins can generate invite tokens
-    if (userData.role !== 'educator' && userData.role !== 'admin') {
-      throw new Error('Only educators and administrators can generate team invite links');
-    }
 
     // Verify the team exists and user has access (RLS will handle permissions)
     const { data: team, error: teamError } = await supabase

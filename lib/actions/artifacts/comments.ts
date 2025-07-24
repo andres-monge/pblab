@@ -3,6 +3,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { createNotification } from "@/lib/actions/notifications";
+import { 
+  getAuthenticatedUser, 
+  verifyArtifactPermissions
+} from "@/lib/actions/shared/authorization";
+import { validateProjectNotClosed } from "@/lib/shared/authorization-utils";
 import type { CreateCommentParams, Comment } from './index';
 
 /**
@@ -22,14 +27,10 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication 
+    await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to get mentionable users');
-    }
 
     // Get project with team and course info to verify user has access
     const { data: project, error: projectError } = await supabase
@@ -166,14 +167,10 @@ export async function createComment(params: CreateCommentParams): Promise<string
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to create comments');
-    }
 
     // Get artifact details with project and team info
     const { data: artifact, error: artifactError } = await supabase
@@ -181,6 +178,7 @@ export async function createComment(params: CreateCommentParams): Promise<string
       .select(`
         id,
         project_id,
+        uploader_id,
         projects!inner(
           id,
           team_id,
@@ -196,47 +194,16 @@ export async function createComment(params: CreateCommentParams): Promise<string
     }
 
     // Check if project is closed (prevent comments in closed projects)
-    if (artifact.projects.phase === 'closed') {
-      throw new Error('Cannot add comments to artifacts in a closed project');
-    }
+    validateProjectNotClosed(artifact.projects.phase, 'add comments to artifacts in');
 
-    // Get user role for authorization checks
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    // Authorization logic
-    let canComment = false;
-
-    if (userData.role === 'admin') {
-      // Admins can comment on any artifact
-      canComment = true;
-    } else if (userData.role === 'educator') {
-      // Educators can comment on artifacts from projects in their courses (RLS handles this)
-      canComment = true;
-    } else if (userData.role === 'student') {
-      // Students can comment on artifacts from their team projects
-      const { data: membership, error: membershipError } = await supabase
-        .from('teams_users')
-        .select('team_id')
-        .eq('team_id', artifact.projects.team_id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (!membershipError && membership) {
-        canComment = true;
-      }
-    }
-
-    if (!canComment) {
-      throw new Error('You can only comment on artifacts from projects of teams you belong to, or courses you teach');
-    }
+    // Verify user has permission to comment on this artifact
+    await verifyArtifactPermissions(
+      user.id,
+      user.role,
+      artifact.uploader_id,
+      artifact.projects.team_id,
+      false // requireOwnership = false for comment operations
+    );
 
     // Create the comment
     const commentData: Comment = {

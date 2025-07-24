@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/db.types";
+import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 
 /**
  * Parameters for logging AI usage interactions
@@ -42,14 +43,10 @@ export async function logAiUsage(params: LogAiUsageParams): Promise<string> {
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to log AI usage');
-    }
 
     // Additional security check: ensure the userId matches the authenticated user
     if (user.id !== userId) {

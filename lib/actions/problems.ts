@@ -3,6 +3,8 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
+import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
+import { requireProjectCreationPermissions } from "@/lib/shared/authorization-utils";
 
 type Problem = Database["public"]["Tables"]["problems"]["Insert"];
 type Rubric = Database["public"]["Tables"]["rubrics"]["Insert"];
@@ -100,30 +102,11 @@ export async function createProblem(params: CreateProblemParams): Promise<string
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication and permissions
+    const user = await getAuthenticatedUser();
+    requireProjectCreationPermissions(user.role);
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to create problems');
-    }
-
-    // Get user role and verify they can create problems
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    // Only educators and admins can create problems
-    if (userData.role !== 'educator' && userData.role !== 'admin') {
-      throw new Error('Only educators and administrators can create problems');
-    }
 
     // Verify the course exists and user has access (RLS will handle permissions)
     const { data: course, error: courseError } = await supabase

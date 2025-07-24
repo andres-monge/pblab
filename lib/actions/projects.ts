@@ -3,6 +3,16 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
+import {
+  getAuthenticatedUser,
+  verifyProjectAccess
+} from "@/lib/actions/shared/authorization";
+import {
+  requireProjectCreationPermissions,
+  requireProjectClosePermissions,
+  validateProjectNotClosed,
+  hasEducatorPermissions
+} from "@/lib/shared/authorization-utils";
 
 type Project = Database["public"]["Tables"]["projects"]["Insert"];
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -82,30 +92,11 @@ export async function createProject(params: CreateProjectParams): Promise<string
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication and permissions
+    const user = await getAuthenticatedUser();
+    requireProjectCreationPermissions(user.role);
+
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to create projects');
-    }
-
-    // Get user role and verify they can create projects
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    // Only educators and admins can create projects
-    if (userData.role !== 'educator' && userData.role !== 'admin') {
-      throw new Error('Only educators and administrators can create projects');
-    }
 
     // Verify the problem exists and user has access (RLS will handle permissions)
     const { data: problem, error: problemError } = await supabase
@@ -214,71 +205,17 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication and get project details
+    const user = await getAuthenticatedUser();
+    const project = await verifyProjectAccess(projectId, user.id, user.role);
+
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to update project phases');
-    }
-
-    // Get user role for authorization checks
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    // Get current project details
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select(`
-        id,
-        phase,
-        team_id,
-        problem_id,
-        teams!inner(id, course_id),
-        problems!inner(id, course_id)
-      `)
-      .eq('id', projectId)
-      .single();
-
-    if (projectError || !project) {
-      throw new Error('Project not found or you do not have permission to access it');
-    }
 
     // Authorization logic based on user role and phase transition
     if (newPhase === 'closed') {
-      // Only educators and admins can close projects
-      if (userData.role !== 'educator' && userData.role !== 'admin') {
-        throw new Error('Only educators and administrators can close projects');
-      }
-    } else {
-      // For other phase transitions, check if user is team member (for students) or educator (for any project in their courses)
-      if (userData.role === 'student') {
-        // Verify student is a member of this project's team
-        const { data: membership, error: membershipError } = await supabase
-          .from('teams_users')
-          .select('team_id')
-          .eq('team_id', project.team_id)
-          .eq('user_id', user.id)
-          .single();
-
-        if (membershipError || !membership) {
-          throw new Error('You can only update phases for projects of teams you belong to');
-        }
-      } else if (userData.role === 'educator') {
-        // RLS policies should handle educator access to their course projects
-        // If we got the project data, the educator has access
-      } else if (userData.role !== 'admin') {
-        throw new Error('Insufficient permissions to update this project phase');
-      }
+      requireProjectClosePermissions(user.role);
     }
+    // Note: Project access verification already handled by verifyProjectAccess helper
 
     // Validate phase transition logic
     const currentPhase = project.phase as ProjectPhase;
@@ -287,12 +224,12 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
     const newIndex = phaseOrder.indexOf(newPhase);
 
     // Allow backward transitions for educators/admins, but students can only advance
-    if (userData.role === 'student' && newIndex <= currentIndex) {
+    if (!hasEducatorPermissions(user.role) && newIndex <= currentIndex) {
       throw new Error('Students can only advance to the next phase in the workflow');
     }
 
     // Prevent invalid transitions (e.g., skipping phases)
-    if (userData.role === 'student' && newIndex > currentIndex + 1) {
+    if (!hasEducatorPermissions(user.role) && newIndex > currentIndex + 1) {
       throw new Error('Cannot skip phases. Please advance one phase at a time.');
     }
 
@@ -357,25 +294,11 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication and project access
+    const user = await getAuthenticatedUser();
+    const project = await verifyProjectAccess(projectId, user.id, user.role);
+
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to update project reports');
-    }
-
-    // Get project and verify access (RLS will handle permissions)
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id, phase, team_id')
-      .eq('id', projectId)
-      .single();
-
-    if (projectError || !project) {
-      throw new Error('Project not found or you do not have permission to access it');
-    }
 
     // Update the project with report URL and potentially advance phase
     const updateData: Partial<Project> = {
@@ -450,25 +373,11 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication and project access
+    const user = await getAuthenticatedUser();
+    const project = await verifyProjectAccess(projectId, user.id, user.role);
+
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to update project reports');
-    }
-
-    // Get project and verify access (RLS will handle permissions)
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id, phase, team_id')
-      .eq('id', projectId)
-      .single();
-
-    if (projectError || !project) {
-      throw new Error('Project not found or you do not have permission to access it');
-    }
 
     // Update the project with both URL and content
     const updateData: Partial<Project> = {
@@ -537,61 +446,14 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
   const trimmedGoals = goals.trim();
 
   try {
-    // Create authenticated Supabase client
-    const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to update learning goals');
-    }
-
-    // Get user role for authorization checks
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single();
-
-    if (userError || !userData) {
-      throw new Error('Failed to verify user permissions');
-    }
-
-    // Get project and verify access (RLS will handle permissions)
-    const { data: project, error: projectError } = await supabase
-      .from('projects')
-      .select('id, phase, team_id')
-      .eq('id', projectId)
-      .single();
-
-    if (projectError || !project) {
-      throw new Error('Project not found or you do not have permission to access it');
-    }
-
+    // Verify user authentication and project access
+    const user = await getAuthenticatedUser();
+    const project = await verifyProjectAccess(projectId, user.id, user.role);
+    
     // Check if project is closed (prevent editing goals in closed projects)
-    if (project.phase === 'closed') {
-      throw new Error('Cannot update learning goals for a closed project');
-    }
+    validateProjectNotClosed(project.phase, 'update learning goals');
 
-    // Authorization logic based on user role
-    if (userData.role === 'student') {
-      // Students can only update goals for their team projects
-      const { data: membership, error: membershipError } = await supabase
-        .from('teams_users')
-        .select('team_id')
-        .eq('team_id', project.team_id)
-        .eq('user_id', user.id)
-        .single();
-
-      if (membershipError || !membership) {
-        throw new Error('You can only update learning goals for projects of teams you belong to');
-      }
-    } else if (userData.role === 'educator') {
-      // Educators can update goals for projects in their courses (RLS handles this)
-      // If we got the project data, the educator has access
-    } else if (userData.role !== 'admin') {
-      throw new Error('Insufficient permissions to update learning goals for this project');
-    }
+    const supabase = await createClient();
 
     // Update the project learning goals
     const { error: updateError } = await supabase

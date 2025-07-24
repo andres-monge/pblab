@@ -171,7 +171,7 @@ The mention system now supports user-selection based workflow where frontend com
 **Step Dependencies**: Step 18.1 completed
 **User Instructions**: None
 
-[ ] Step 18.3: Create Shared Authorization Helpers
+[x] Step 18.3: Create Shared Authorization Helpers
 **Task**: Extract repetitive authorization patterns from `projects.ts` and `artifacts.ts` into reusable helpers. This reduces 200+ lines of duplicated permission checking code.
 **Suggested Files for Context**: `lib/actions/projects.ts`, `lib/actions/artifacts.ts`
 **Step Dependencies**: Step 18.2 completed

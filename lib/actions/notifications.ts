@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
+import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 
 type NotificationInsert = Database["public"]["Tables"]["notifications"]["Insert"];
 
@@ -63,14 +64,10 @@ export async function getNotifications(params: GetNotificationsParams = {}): Pro
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to fetch notifications');
-    }
 
     // Build the query
     let query = supabase
@@ -153,14 +150,10 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to mark notifications as read');
-    }
 
     // Get the notification to verify it exists and belongs to the user
     const { data: notification, error: fetchError } = await supabase
@@ -250,14 +243,10 @@ export async function createNotification(params: {
   }
 
   try {
-    // Create authenticated Supabase client
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
     const supabase = await createClient();
-
-    // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      throw new Error('User must be authenticated to create notifications');
-    }
 
     // Don't create a notification if the actor and recipient are the same user
     if (user.id === recipientId) {
