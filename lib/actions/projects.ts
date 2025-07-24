@@ -13,6 +13,15 @@ import {
   validateProjectNotClosed,
   hasEducatorPermissions
 } from "@/lib/shared/authorization-utils";
+import {
+  validateId,
+  validateProjectId,
+  validateTeamId,
+  validateEnum,
+  validateUrl,
+  validateRequiredString,
+  validateOptionalString
+} from "@/lib/shared/validation";
 
 type Project = Database["public"]["Tables"]["projects"]["Insert"];
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -83,13 +92,8 @@ export async function createProject(params: CreateProjectParams): Promise<string
   const { problemId, teamId } = params;
 
   // Validate required parameters
-  if (!problemId || typeof problemId !== 'string') {
-    throw new Error('Problem ID is required and must be a valid string');
-  }
-
-  if (!teamId || typeof teamId !== 'string') {
-    throw new Error('Team ID is required and must be a valid string');
-  }
+  const validatedProblemId = validateId(problemId, 'Problem ID');
+  const validatedTeamId = validateTeamId(teamId);
 
   try {
     // Verify user authentication and permissions
@@ -102,7 +106,7 @@ export async function createProject(params: CreateProjectParams): Promise<string
     const { data: problem, error: problemError } = await supabase
       .from('problems')
       .select('id, title, course_id')
-      .eq('id', problemId)
+      .eq('id', validatedProblemId)
       .single();
 
     if (problemError || !problem) {
@@ -113,7 +117,7 @@ export async function createProject(params: CreateProjectParams): Promise<string
     const { data: team, error: teamError } = await supabase
       .from('teams')
       .select('id, name, course_id')
-      .eq('id', teamId)
+      .eq('id', validatedTeamId)
       .single();
 
     if (teamError || !team) {
@@ -129,8 +133,8 @@ export async function createProject(params: CreateProjectParams): Promise<string
     const { data: existingProject, error: existingError } = await supabase
       .from('projects')
       .select('id')
-      .eq('problem_id', problemId)
-      .eq('team_id', teamId)
+      .eq('problem_id', validatedProblemId)
+      .eq('team_id', validatedTeamId)
       .single();
 
     if (existingError && existingError.code !== 'PGRST116') {
@@ -144,8 +148,8 @@ export async function createProject(params: CreateProjectParams): Promise<string
 
     // Create the project
     const projectData: Project = {
-      problem_id: problemId,
-      team_id: teamId,
+      problem_id: validatedProblemId,
+      team_id: validatedTeamId,
       phase: 'pre', // Start in pre-discussion phase
     };
 
@@ -190,29 +194,18 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
   const { projectId, newPhase } = params;
 
   // Validate required parameters
-  if (!projectId || typeof projectId !== 'string') {
-    throw new Error('Project ID is required and must be a valid string');
-  }
-
-  if (!newPhase || typeof newPhase !== 'string') {
-    throw new Error('New phase is required and must be a valid string');
-  }
-
-  // Validate phase value
-  const validPhases: ProjectPhase[] = ['pre', 'research', 'post', 'closed'];
-  if (!validPhases.includes(newPhase)) {
-    throw new Error(`Invalid phase. Must be one of: ${validPhases.join(', ')}`);
-  }
+  const validatedProjectId = validateProjectId(projectId);
+  const validatedPhase = validateEnum(newPhase, 'New phase', ['pre', 'research', 'post', 'closed'] as const);
 
   try {
     // Verify user authentication and get project details
     const user = await getAuthenticatedUser();
-    const project = await verifyProjectAccess(projectId, user.id, user.role);
+    const project = await verifyProjectAccess(validatedProjectId, user.id, user.role);
 
     const supabase = await createClient();
 
     // Authorization logic based on user role and phase transition
-    if (newPhase === 'closed') {
+    if (validatedPhase === 'closed') {
       requireProjectClosePermissions(user.role);
     }
     // Note: Project access verification already handled by verifyProjectAccess helper
@@ -221,7 +214,7 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
     const currentPhase = project.phase as ProjectPhase;
     const phaseOrder: ProjectPhase[] = ['pre', 'research', 'post', 'closed'];
     const currentIndex = phaseOrder.indexOf(currentPhase);
-    const newIndex = phaseOrder.indexOf(newPhase);
+    const newIndex = phaseOrder.indexOf(validatedPhase);
 
     // Allow backward transitions for educators/admins, but students can only advance
     if (!hasEducatorPermissions(user.role) && newIndex <= currentIndex) {
@@ -237,10 +230,10 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
     const { error: updateError } = await supabase
       .from('projects')
       .update({ 
-        phase: newPhase,
+        phase: validatedPhase,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', projectId);
+      .eq('id', validatedProjectId);
 
     if (updateError) {
       console.error('Failed to update project phase:', updateError);
@@ -251,9 +244,9 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
     revalidatePath('/educator/dashboard');
     revalidatePath('/student/dashboard');
     revalidatePath('/dashboard');
-    revalidatePath(`/p/${projectId}`);
+    revalidatePath(`/p/${validatedProjectId}`);
 
-    return `Project phase updated to: ${newPhase}`;
+    return `Project phase updated to: ${validatedPhase}`;
   } catch (error) {
     // Re-throw with context if it's already an Error object
     if (error instanceof Error) {
@@ -278,31 +271,19 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
   const { projectId, reportUrl } = params;
 
   // Validate required parameters
-  if (!projectId || typeof projectId !== 'string') {
-    throw new Error('Project ID is required and must be a valid string');
-  }
-
-  if (!reportUrl || typeof reportUrl !== 'string' || reportUrl.trim().length === 0) {
-    throw new Error('Report URL is required and cannot be empty');
-  }
-
-  // Basic URL validation
-  try {
-    new URL(reportUrl);
-  } catch {
-    throw new Error('Report URL must be a valid URL');
-  }
+  const validatedProjectId = validateProjectId(projectId);
+  const validatedReportUrl = validateUrl(reportUrl, 'Report URL');
 
   try {
     // Verify user authentication and project access
     const user = await getAuthenticatedUser();
-    const project = await verifyProjectAccess(projectId, user.id, user.role);
+    const project = await verifyProjectAccess(validatedProjectId, user.id, user.role);
 
     const supabase = await createClient();
 
     // Update the project with report URL and potentially advance phase
     const updateData: Partial<Project> = {
-      final_report_url: reportUrl.trim(),
+      final_report_url: validatedReportUrl,
       updated_at: new Date().toISOString(),
     };
 
@@ -314,7 +295,7 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
     const { error: updateError } = await supabase
       .from('projects')
       .update(updateData)
-      .eq('id', projectId);
+      .eq('id', validatedProjectId);
 
     if (updateError) {
       console.error('Failed to update project report URL:', updateError);
@@ -325,7 +306,7 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
     revalidatePath('/educator/dashboard');
     revalidatePath('/student/dashboard');
     revalidatePath('/dashboard');
-    revalidatePath(`/p/${projectId}`);
+    revalidatePath(`/p/${validatedProjectId}`);
 
     const phaseMessage = project.phase === 'research' ? ' and advanced to post-discussion phase' : '';
     return `Final report URL updated successfully${phaseMessage}`;
@@ -353,36 +334,21 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
   const { projectId, reportUrl, reportContent } = params;
 
   // Validate required parameters
-  if (!projectId || typeof projectId !== 'string') {
-    throw new Error('Project ID is required and must be a valid string');
-  }
-
-  if (!reportUrl || typeof reportUrl !== 'string' || reportUrl.trim().length === 0) {
-    throw new Error('Report URL is required and cannot be empty');
-  }
-
-  if (!reportContent || typeof reportContent !== 'string' || reportContent.trim().length === 0) {
-    throw new Error('Report content is required and cannot be empty');
-  }
-
-  // Basic URL validation
-  try {
-    new URL(reportUrl);
-  } catch {
-    throw new Error('Report URL must be a valid URL');
-  }
+  const validatedProjectId = validateProjectId(projectId);
+  const validatedReportUrl = validateUrl(reportUrl, 'Report URL');
+  const validatedReportContent = validateRequiredString(reportContent, 'Report content');
 
   try {
     // Verify user authentication and project access
     const user = await getAuthenticatedUser();
-    const project = await verifyProjectAccess(projectId, user.id, user.role);
+    const project = await verifyProjectAccess(validatedProjectId, user.id, user.role);
 
     const supabase = await createClient();
 
     // Update the project with both URL and content
     const updateData: Partial<Project> = {
-      final_report_url: reportUrl.trim(),
-      final_report_content: reportContent.trim(),
+      final_report_url: validatedReportUrl,
+      final_report_content: validatedReportContent,
       updated_at: new Date().toISOString(),
     };
 
@@ -394,7 +360,7 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
     const { error: updateError } = await supabase
       .from('projects')
       .update(updateData)
-      .eq('id', projectId);
+      .eq('id', validatedProjectId);
 
     if (updateError) {
       console.error('Failed to update project report content:', updateError);
@@ -405,7 +371,7 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
     revalidatePath('/educator/dashboard');
     revalidatePath('/student/dashboard');
     revalidatePath('/dashboard');
-    revalidatePath(`/p/${projectId}`);
+    revalidatePath(`/p/${validatedProjectId}`);
 
     const phaseMessage = project.phase === 'research' ? ' and advanced to post-discussion phase' : '';
     return `Final report submitted successfully${phaseMessage}. Content cached for assessment.`;
@@ -434,21 +400,13 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
   const { projectId, goals } = params;
 
   // Validate required parameters
-  if (!projectId || typeof projectId !== 'string') {
-    throw new Error('Project ID is required and must be a valid string');
-  }
-
-  if (typeof goals !== 'string') {
-    throw new Error('Learning goals must be a string');
-  }
-
-  // Allow empty goals (students can clear their goals)
-  const trimmedGoals = goals.trim();
+  const validatedProjectId = validateProjectId(projectId);
+  const validatedGoals = validateOptionalString(goals, 'Learning goals');
 
   try {
     // Verify user authentication and project access
     const user = await getAuthenticatedUser();
-    const project = await verifyProjectAccess(projectId, user.id, user.role);
+    const project = await verifyProjectAccess(validatedProjectId, user.id, user.role);
     
     // Check if project is closed (prevent editing goals in closed projects)
     validateProjectNotClosed(project.phase, 'update learning goals');
@@ -459,10 +417,10 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
     const { error: updateError } = await supabase
       .from('projects')
       .update({ 
-        learning_goals: trimmedGoals || null, // Store null for empty goals
+        learning_goals: validatedGoals, // validateOptionalString returns null for empty
         updated_at: new Date().toISOString(),
       })
-      .eq('id', projectId);
+      .eq('id', validatedProjectId);
 
     if (updateError) {
       console.error('Failed to update project learning goals:', updateError);
@@ -473,9 +431,9 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
     revalidatePath('/educator/dashboard');
     revalidatePath('/student/dashboard');
     revalidatePath('/dashboard');
-    revalidatePath(`/p/${projectId}`);
+    revalidatePath(`/p/${validatedProjectId}`);
 
-    return trimmedGoals ? 'Learning goals updated successfully' : 'Learning goals cleared successfully';
+    return validatedGoals ? 'Learning goals updated successfully' : 'Learning goals cleared successfully';
   } catch (error) {
     // Re-throw with context if it's already an Error object
     if (error instanceof Error) {

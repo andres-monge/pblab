@@ -9,6 +9,12 @@ import {
   verifyArtifactPermissions
 } from "@/lib/actions/shared/authorization";
 import { validateProjectNotClosed } from "@/lib/shared/authorization-utils";
+import {
+  validateProjectId,
+  validateArtifactId,
+  validateRequiredString,
+  validateEnum
+} from "@/lib/shared/validation";
 import type { CreateArtifactParams, DeleteArtifactParams, Artifact } from './index';
 
 /**
@@ -25,32 +31,21 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
   const { projectId, title, url, type, mimeType, fileName } = params;
 
   // Validate required parameters
-  if (!projectId || typeof projectId !== 'string') {
-    throw new Error('Project ID is required and must be a valid string');
-  }
-
-  if (!title || typeof title !== 'string' || title.trim().length === 0) {
-    throw new Error('Artifact title is required and cannot be empty');
-  }
-
-  if (!url || typeof url !== 'string' || url.trim().length === 0) {
-    throw new Error('Artifact URL is required and cannot be empty');
-  }
-
-  if (!type || !['doc', 'image', 'video', 'link'].includes(type)) {
-    throw new Error('Artifact type must be one of: doc, image, video, link');
-  }
+  const validatedProjectId = validateProjectId(projectId);
+  const validatedTitle = validateRequiredString(title, 'Artifact title');
+  const validatedUrl = validateRequiredString(url, 'Artifact URL');
+  const validatedType = validateEnum(type, 'Artifact type', ['doc', 'image', 'video', 'link'] as const);
 
   // Validate file type for uploaded files (not external links)
-  if (type !== 'link') {
-    if (!validateFileType(mimeType, fileName || url)) {
+  if (validatedType !== 'link') {
+    if (!validateFileType(mimeType, fileName || validatedUrl)) {
       throw new Error('File type not allowed. Please upload a supported file format.');
     }
   }
 
   // Basic URL validation for external links
-  if (type === 'link') {
-    if (!validateUrlFormat(url)) {
+  if (validatedType === 'link') {
+    if (!validateUrlFormat(validatedUrl)) {
       throw new Error('Invalid URL format for external link');
     }
   }
@@ -58,7 +53,7 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
   try {
     // Verify user authentication and project access
     const user = await getAuthenticatedUser();
-    const project = await verifyProjectAccess(projectId, user.id, user.role);
+    const project = await verifyProjectAccess(validatedProjectId, user.id, user.role);
     
     // Check if project is closed (prevent artifact creation in closed projects)
     validateProjectNotClosed(project.phase, 'add artifacts to');
@@ -67,11 +62,11 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
 
     // Create the artifact
     const artifactData: Artifact = {
-      project_id: projectId,
+      project_id: validatedProjectId,
       uploader_id: user.id,
-      title: title.trim(),
-      url: url.trim(),
-      type: type,
+      title: validatedTitle,
+      url: validatedUrl,
+      type: validatedType,
     };
 
     const { data: createdArtifact, error: artifactError } = await supabase
@@ -86,7 +81,7 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
     }
 
     // Revalidate project page to show new artifact
-    revalidatePath(`/p/${projectId}`);
+    revalidatePath(`/p/${validatedProjectId}`);
     revalidatePath('/student/dashboard');
     revalidatePath('/educator/dashboard');
     revalidatePath('/dashboard');
@@ -116,9 +111,7 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
   const { artifactId } = params;
 
   // Validate required parameters
-  if (!artifactId || typeof artifactId !== 'string') {
-    throw new Error('Artifact ID is required and must be a valid string');
-  }
+  const validatedArtifactId = validateArtifactId(artifactId);
 
   try {
     // Verify user authentication
@@ -141,7 +134,7 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
           teams!inner(id, course_id)
         )
       `)
-      .eq('id', artifactId)
+      .eq('id', validatedArtifactId)
       .single();
 
     if (artifactError || !artifact) {
@@ -164,7 +157,7 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
     const { error: deleteError } = await supabase
       .from('artifacts')
       .delete()
-      .eq('id', artifactId);
+      .eq('id', validatedArtifactId);
 
     if (deleteError) {
       console.error('Failed to delete artifact:', deleteError);

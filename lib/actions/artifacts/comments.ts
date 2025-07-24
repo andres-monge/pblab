@@ -8,6 +8,12 @@ import {
   verifyArtifactPermissions
 } from "@/lib/actions/shared/authorization";
 import { validateProjectNotClosed } from "@/lib/shared/authorization-utils";
+import {
+  validateProjectId,
+  validateArtifactId,
+  validateRequiredString,
+  validateStringArray
+} from "@/lib/shared/validation";
 import type { CreateCommentParams, Comment } from './index';
 
 /**
@@ -22,9 +28,7 @@ import type { CreateCommentParams, Comment } from './index';
  */
 export async function getProjectMentionableUsers(projectId: string): Promise<Array<{id: string; name: string | null; email: string}>> {
   // Validate required parameters
-  if (!projectId || typeof projectId !== 'string') {
-    throw new Error('Project ID is required and must be a valid string');
-  }
+  const validatedProjectId = validateProjectId(projectId);
 
   try {
     // Verify user authentication 
@@ -43,7 +47,7 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
           course_id
         )
       `)
-      .eq('id', projectId)
+      .eq('id', validatedProjectId)
       .single();
 
     if (projectError || !project) {
@@ -140,31 +144,9 @@ export async function createComment(params: CreateCommentParams): Promise<string
   const { artifactId, body, mentionedUserIds = [] } = params;
 
   // Validate required parameters
-  if (!artifactId || typeof artifactId !== 'string') {
-    throw new Error('Artifact ID is required and must be a valid string');
-  }
-
-  if (!body || typeof body !== 'string' || body.trim().length === 0) {
-    throw new Error('Comment body is required and cannot be empty');
-  }
-
-  if (body.trim().length > 2000) {
-    throw new Error('Comment body cannot exceed 2000 characters');
-  }
-
-  // Validate mentionedUserIds parameter
-  if (mentionedUserIds && !Array.isArray(mentionedUserIds)) {
-    throw new Error('Mentioned user IDs must be an array');
-  }
-
-  // Validate each user ID in the array
-  if (mentionedUserIds) {
-    for (const userId of mentionedUserIds) {
-      if (!userId || typeof userId !== 'string') {
-        throw new Error('All mentioned user IDs must be valid strings');
-      }
-    }
-  }
+  const validatedArtifactId = validateArtifactId(artifactId);
+  const validatedBody = validateRequiredString(body, 'Comment body', 2000);
+  const validatedMentionedUserIds = validateStringArray(mentionedUserIds, 'Mentioned user IDs', false);
 
   try {
     // Verify user authentication
@@ -186,7 +168,7 @@ export async function createComment(params: CreateCommentParams): Promise<string
           teams!inner(id, course_id)
         )
       `)
-      .eq('id', artifactId)
+      .eq('id', validatedArtifactId)
       .single();
 
     if (artifactError || !artifact) {
@@ -207,9 +189,9 @@ export async function createComment(params: CreateCommentParams): Promise<string
 
     // Create the comment
     const commentData: Comment = {
-      artifact_id: artifactId,
+      artifact_id: validatedArtifactId,
       author_id: user.id,
-      body: body.trim(),
+      body: validatedBody,
     };
 
     const { data: createdComment, error: commentError } = await supabase
@@ -224,14 +206,14 @@ export async function createComment(params: CreateCommentParams): Promise<string
     }
 
     // Process mentions if any were provided
-    if (mentionedUserIds && mentionedUserIds.length > 0) {
+    if (validatedMentionedUserIds && validatedMentionedUserIds.length > 0) {
       try {
         // Get mentionable users for this project to validate mentions
         const mentionableUsers = await getProjectMentionableUsers(artifact.project_id);
         const mentionableUserIds = mentionableUsers.map(u => u.id);
 
         // Deduplicate mentioned user IDs and filter to only valid/mentionable users
-        const uniqueMentionedUserIds = [...new Set(mentionedUserIds)]
+        const uniqueMentionedUserIds = [...new Set(validatedMentionedUserIds)]
           .filter(userId => userId !== user.id) // Skip self-mentions
           .filter(userId => mentionableUserIds.includes(userId)); // Only allow mentionable users
 

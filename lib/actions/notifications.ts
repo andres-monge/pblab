@@ -4,6 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
+import {
+  validateNotificationId,
+  validateUserId,
+  validateRequiredString,
+  validateRange
+} from "@/lib/shared/validation";
 
 type NotificationInsert = Database["public"]["Tables"]["notifications"]["Insert"];
 
@@ -59,9 +65,7 @@ export async function getNotifications(params: GetNotificationsParams = {}): Pro
   const { unreadOnly = false, limit = 50 } = params;
 
   // Validate limit parameter
-  if (typeof limit !== 'number' || limit < 1 || limit > 100) {
-    throw new Error('Limit must be a number between 1 and 100');
-  }
+  const validatedLimit = validateRange(limit, 'Limit', 1, 100);
 
   try {
     // Verify user authentication
@@ -89,7 +93,7 @@ export async function getNotifications(params: GetNotificationsParams = {}): Pro
       `)
       .eq('recipient_id', user.id)
       .order('created_at', { ascending: false })
-      .limit(limit);
+      .limit(validatedLimit);
 
     // Apply unread filter if requested
     if (unreadOnly) {
@@ -145,9 +149,7 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
   const { notificationId } = params;
 
   // Validate required parameters
-  if (!notificationId || typeof notificationId !== 'string') {
-    throw new Error('Notification ID is required and must be a valid string');
-  }
+  const validatedNotificationId = validateNotificationId(notificationId);
 
   try {
     // Verify user authentication
@@ -159,7 +161,7 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
     const { data: notification, error: fetchError } = await supabase
       .from('notifications')
       .select('id, recipient_id, is_read')
-      .eq('id', notificationId)
+      .eq('id', validatedNotificationId)
       .single();
 
     if (fetchError) {
@@ -188,7 +190,7 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
     const { error: updateError } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('id', notificationId);
+      .eq('id', validatedNotificationId);
 
     if (updateError) {
       console.error('Failed to mark notification as read:', updateError);
@@ -230,17 +232,9 @@ export async function createNotification(params: {
   const { recipientId, type, referenceId, referenceUrl = null } = params;
 
   // Validate required parameters
-  if (!recipientId || typeof recipientId !== 'string') {
-    throw new Error('Recipient ID is required and must be a valid string');
-  }
-
-  if (!type || typeof type !== 'string') {
-    throw new Error('Notification type is required and must be a valid string');
-  }
-
-  if (!referenceId || typeof referenceId !== 'string') {
-    throw new Error('Reference ID is required and must be a valid string');
-  }
+  const validatedRecipientId = validateUserId(recipientId);
+  const validatedType = validateRequiredString(type, 'Notification type');
+  const validatedReferenceId = validateRequiredString(referenceId, 'Reference ID');
 
   try {
     // Verify user authentication
@@ -249,16 +243,16 @@ export async function createNotification(params: {
     const supabase = await createClient();
 
     // Don't create a notification if the actor and recipient are the same user
-    if (user.id === recipientId) {
+    if (user.id === validatedRecipientId) {
       return 'Self-notification skipped';
     }
 
     // Create the notification
     const notificationData: NotificationInsert = {
-      recipient_id: recipientId,
+      recipient_id: validatedRecipientId,
       actor_id: user.id,
-      type,
-      reference_id: referenceId,
+      type: validatedType as Database["public"]["Enums"]["notification_type"],
+      reference_id: validatedReferenceId,
       reference_url: referenceUrl,
     };
 
