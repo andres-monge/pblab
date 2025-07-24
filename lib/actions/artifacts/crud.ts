@@ -15,6 +15,13 @@ import {
   validateRequiredString,
   validateEnum
 } from "@/lib/shared/validation";
+import {
+  CreateResult,
+  UpdateResult,
+  createIdResponse,
+  createMessageResponse,
+  createErrorResponse
+} from "@/lib/shared/action-types";
 import type { CreateArtifactParams, DeleteArtifactParams, Artifact } from './index';
 
 /**
@@ -24,10 +31,9 @@ import type { CreateArtifactParams, DeleteArtifactParams, Artifact } from './ind
  * user has permission to add artifacts to the project.
  * 
  * @param params - Artifact creation parameters
- * @returns Promise resolving to the created artifact ID
- * @throws Error if file type not allowed, user not authenticated, or lacks permission
+ * @returns Promise resolving to CreateResult with artifact ID or error
  */
-export async function createArtifact(params: CreateArtifactParams): Promise<string> {
+export async function createArtifact(params: CreateArtifactParams): Promise<CreateResult> {
   const { projectId, title, url, type, mimeType, fileName } = params;
 
   // Validate required parameters
@@ -39,14 +45,14 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
   // Validate file type for uploaded files (not external links)
   if (validatedType !== 'link') {
     if (!validateFileType(mimeType, fileName || validatedUrl)) {
-      throw new Error('File type not allowed. Please upload a supported file format.');
+      return createErrorResponse('File type not allowed. Please upload a supported file format.');
     }
   }
 
   // Basic URL validation for external links
   if (validatedType === 'link') {
     if (!validateUrlFormat(validatedUrl)) {
-      throw new Error('Invalid URL format for external link');
+      return createErrorResponse('Invalid URL format for external link');
     }
   }
 
@@ -77,7 +83,7 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
 
     if (artifactError || !createdArtifact) {
       console.error('Failed to create artifact:', artifactError);
-      throw new Error(`Failed to create artifact: ${artifactError?.message || 'Unknown error'}`);
+      return createErrorResponse(`Failed to create artifact: ${artifactError?.message || 'Unknown error'}`);
     }
 
     // Revalidate project page to show new artifact
@@ -86,14 +92,11 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
     revalidatePath('/educator/dashboard');
     revalidatePath('/dashboard');
 
-    return createdArtifact.id;
+    return createIdResponse(createdArtifact.id);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error creating artifact: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error creating artifact: ${errorMessage}`);
   }
 }
 
@@ -104,10 +107,9 @@ export async function createArtifact(params: CreateArtifactParams): Promise<stri
  * with permission to manage the project.
  * 
  * @param params - Artifact deletion parameters
- * @returns Promise resolving to success message
- * @throws Error if user not authenticated, artifact not found, or lacks permission
+ * @returns Promise resolving to UpdateResult with success message or error
  */
-export async function deleteArtifact(params: DeleteArtifactParams): Promise<string> {
+export async function deleteArtifact(params: DeleteArtifactParams): Promise<UpdateResult> {
   const { artifactId } = params;
 
   // Validate required parameters
@@ -138,7 +140,7 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
       .single();
 
     if (artifactError || !artifact) {
-      throw new Error('Artifact not found or you do not have permission to access it');
+      return createErrorResponse('Artifact not found or you do not have permission to access it');
     }
 
     // Check if project is closed (prevent deletion in closed projects)
@@ -161,7 +163,7 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
 
     if (deleteError) {
       console.error('Failed to delete artifact:', deleteError);
-      throw new Error(`Failed to delete artifact: ${deleteError.message}`);
+      return createErrorResponse(`Failed to delete artifact: ${deleteError.message}`);
     }
 
     // Revalidate project page to remove deleted artifact
@@ -170,13 +172,10 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<stri
     revalidatePath('/educator/dashboard');
     revalidatePath('/dashboard');
 
-    return `Artifact "${artifact.title}" deleted successfully`;
+    return createMessageResponse(`Artifact "${artifact.title}" deleted successfully`);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error deleting artifact: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error deleting artifact: ${errorMessage}`);
   }
 }

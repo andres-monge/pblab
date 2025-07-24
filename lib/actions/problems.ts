@@ -5,6 +5,11 @@ import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 import { requireProjectCreationPermissions } from "@/lib/shared/authorization-utils";
+import {
+  CreateResult,
+  createIdResponse,
+  createErrorResponse
+} from "@/lib/shared/action-types";
 
 type Problem = Database["public"]["Tables"]["problems"]["Insert"];
 type Rubric = Database["public"]["Tables"]["rubrics"]["Insert"];
@@ -57,31 +62,30 @@ export interface CreateProblemParams {
  * If any step fails, the entire transaction is rolled back.
  * 
  * @param params - Problem creation parameters
- * @returns Promise resolving to the created problem ID
- * @throws Error if user is not authenticated, not an educator, or transaction fails
+ * @returns Promise resolving to CreateResult with problem ID or error
  */
-export async function createProblem(params: CreateProblemParams): Promise<string> {
+export async function createProblem(params: CreateProblemParams): Promise<CreateResult> {
   const { title, description, courseId, rubric } = params;
 
   // Validate required parameters
   if (!title || typeof title !== 'string' || title.trim().length === 0) {
-    throw new Error('Problem title is required and cannot be empty');
+    return createErrorResponse('Problem title is required and cannot be empty');
   }
 
   if (!courseId || typeof courseId !== 'string') {
-    throw new Error('Course ID is required and must be a valid string');
+    return createErrorResponse('Course ID is required and must be a valid string');
   }
 
   if (!rubric || typeof rubric !== 'object') {
-    throw new Error('Rubric data is required');
+    return createErrorResponse('Rubric data is required');
   }
 
   if (!rubric.name || typeof rubric.name !== 'string' || rubric.name.trim().length === 0) {
-    throw new Error('Rubric name is required and cannot be empty');
+    return createErrorResponse('Rubric name is required and cannot be empty');
   }
 
   if (!Array.isArray(rubric.criteria) || rubric.criteria.length === 0) {
-    throw new Error('Rubric must have at least one criterion');
+    return createErrorResponse('Rubric must have at least one criterion');
   }
 
   // Validate each criterion
@@ -89,15 +93,15 @@ export async function createProblem(params: CreateProblemParams): Promise<string
     const criterion = rubric.criteria[i];
     
     if (!criterion.criterion_text || typeof criterion.criterion_text !== 'string' || criterion.criterion_text.trim().length === 0) {
-      throw new Error(`Criterion ${i + 1}: Text is required and cannot be empty`);
+      return createErrorResponse(`Criterion ${i + 1}: Text is required and cannot be empty`);
     }
     
     if (criterion.max_score !== undefined && (typeof criterion.max_score !== 'number' || criterion.max_score < 1 || criterion.max_score > 10)) {
-      throw new Error(`Criterion ${i + 1}: Max score must be a number between 1 and 10`);
+      return createErrorResponse(`Criterion ${i + 1}: Max score must be a number between 1 and 10`);
     }
     
     if (typeof criterion.sort_order !== 'number' || criterion.sort_order < 0) {
-      throw new Error(`Criterion ${i + 1}: Sort order must be a non-negative number`);
+      return createErrorResponse(`Criterion ${i + 1}: Sort order must be a non-negative number`);
     }
   }
 
@@ -116,7 +120,7 @@ export async function createProblem(params: CreateProblemParams): Promise<string
       .single();
 
     if (courseError || !course) {
-      throw new Error('Course not found or you do not have permission to create problems in this course');
+      return createErrorResponse('Course not found or you do not have permission to create problems in this course');
     }
 
     // Start transaction by creating the problem
@@ -135,7 +139,7 @@ export async function createProblem(params: CreateProblemParams): Promise<string
 
     if (problemError || !createdProblem) {
       console.error('Failed to create problem:', problemError);
-      throw new Error(`Failed to create problem: ${problemError?.message || 'Unknown error'}`);
+      return createErrorResponse(`Failed to create problem: ${problemError?.message || 'Unknown error'}`);
     }
 
     const problemId = createdProblem.id;
@@ -183,27 +187,26 @@ export async function createProblem(params: CreateProblemParams): Promise<string
         revalidatePath('/educator/problems');
         revalidatePath('/dashboard');
 
-        return problemId;
+        return createIdResponse(problemId);
 
       } catch (criteriaErr) {
         // Rollback: Delete the rubric if criteria creation failed
         await supabase.from('rubrics').delete().eq('id', rubricId);
-        throw criteriaErr;
+        const errorMessage = criteriaErr instanceof Error ? criteriaErr.message : String(criteriaErr);
+        return createErrorResponse(errorMessage);
       }
 
     } catch (rubricErr) {
       // Rollback: Delete the problem if rubric creation failed
       await supabase.from('problems').delete().eq('id', problemId);
-      throw rubricErr;
+      const errorMessage = rubricErr instanceof Error ? rubricErr.message : String(rubricErr);
+      return createErrorResponse(errorMessage);
     }
 
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error creating problem: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error creating problem: ${errorMessage}`);
   }
 }
 

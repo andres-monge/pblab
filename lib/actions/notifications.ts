@@ -10,6 +10,15 @@ import {
   validateRequiredString,
   validateRange
 } from "@/lib/shared/validation";
+import {
+  QueryResult,
+  UpdateResult,
+  CreateResult,
+  createSuccessResponse,
+  createMessageResponse,
+  createIdResponse,
+  createErrorResponse
+} from "@/lib/shared/action-types";
 
 type NotificationInsert = Database["public"]["Tables"]["notifications"]["Insert"];
 
@@ -58,10 +67,9 @@ export interface GetNotificationsParams {
  * for only unread notifications.
  * 
  * @param params - Notification fetch parameters
- * @returns Promise resolving to array of notifications with actor details
- * @throws Error if user is not authenticated
+ * @returns Promise resolving to QueryResult with notifications array or error
  */
-export async function getNotifications(params: GetNotificationsParams = {}): Promise<NotificationWithActor[]> {
+export async function getNotifications(params: GetNotificationsParams = {}): Promise<QueryResult<NotificationWithActor[]>> {
   const { unreadOnly = false, limit = 50 } = params;
 
   // Validate limit parameter
@@ -124,14 +132,11 @@ export async function getNotifications(params: GetNotificationsParams = {}): Pro
       },
     }));
 
-    return transformedNotifications;
+    return createSuccessResponse(transformedNotifications);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error fetching notifications: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error fetching notifications: ${errorMessage}`);
   }
 }
 
@@ -142,14 +147,16 @@ export async function getNotifications(params: GetNotificationsParams = {}): Pro
  * Users can only mark their own notifications as read (enforced by RLS).
  * 
  * @param params - Notification mark as read parameters
- * @returns Promise resolving to success message
- * @throws Error if user is not authenticated, notification not found, or lacks permission
+ * @returns Promise resolving to UpdateResult with success message or error
  */
-export async function markNotificationAsRead(params: MarkNotificationAsReadParams): Promise<string> {
+export async function markNotificationAsRead(params: MarkNotificationAsReadParams): Promise<UpdateResult> {
   const { notificationId } = params;
 
   // Validate required parameters
   const validatedNotificationId = validateNotificationId(notificationId);
+  if (!validatedNotificationId) {
+    return createErrorResponse('Invalid notification ID provided');
+  }
 
   try {
     // Verify user authentication
@@ -166,24 +173,24 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
 
     if (fetchError) {
       if (fetchError.code === 'PGRST116') {
-        throw new Error('Notification not found or you do not have permission to access it');
+        return createErrorResponse('Notification not found or you do not have permission to access it');
       }
       console.error('Failed to fetch notification:', fetchError);
-      throw new Error(`Failed to fetch notification: ${fetchError.message}`);
+      return createErrorResponse(`Failed to fetch notification: ${fetchError.message}`);
     }
 
     if (!notification) {
-      throw new Error('Notification not found or you do not have permission to access it');
+      return createErrorResponse('Notification not found or you do not have permission to access it');
     }
 
     // Additional security check (though RLS should handle this)
     if (notification.recipient_id !== user.id) {
-      throw new Error('You can only mark your own notifications as read');
+      return createErrorResponse('You can only mark your own notifications as read');
     }
 
     // Check if already read (no need to update)
     if (notification.is_read) {
-      return 'Notification was already marked as read';
+      return createMessageResponse('Notification was already marked as read');
     }
 
     // Update the notification to mark as read
@@ -194,7 +201,7 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
 
     if (updateError) {
       console.error('Failed to mark notification as read:', updateError);
-      throw new Error(`Failed to mark notification as read: ${updateError.message}`);
+      return createErrorResponse(`Failed to mark notification as read: ${updateError.message}`);
     }
 
     // Revalidate paths that might show notification counts
@@ -202,14 +209,11 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
     revalidatePath('/student/dashboard');
     revalidatePath('/educator/dashboard');
 
-    return 'Notification marked as read successfully';
+    return createMessageResponse('Notification marked as read successfully');
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error marking notification as read: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error marking notification as read: ${errorMessage}`);
   }
 }
 
@@ -220,15 +224,14 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
  * The actor_id will be set to the current authenticated user.
  * 
  * @param params - Notification creation parameters  
- * @returns Promise resolving to the created notification ID
- * @throws Error if user is not authenticated or creation fails
+ * @returns Promise resolving to CreateResult with notification ID or error
  */
 export async function createNotification(params: {
   recipientId: string;
   type: Database["public"]["Enums"]["notification_type"];
   referenceId: string;
   referenceUrl?: string | null;
-}): Promise<string> {
+}): Promise<CreateResult> {
   const { recipientId, type, referenceId, referenceUrl = null } = params;
 
   // Validate required parameters
@@ -244,7 +247,7 @@ export async function createNotification(params: {
 
     // Don't create a notification if the actor and recipient are the same user
     if (user.id === validatedRecipientId) {
-      return 'Self-notification skipped';
+      return createErrorResponse('Cannot create notification for yourself');
     }
 
     // Create the notification
@@ -264,7 +267,7 @@ export async function createNotification(params: {
 
     if (createError || !createdNotification) {
       console.error('Failed to create notification:', createError);
-      throw new Error(`Failed to create notification: ${createError?.message || 'Unknown error'}`);
+      return createErrorResponse(`Failed to create notification: ${createError?.message || 'Unknown error'}`);
     }
 
     // Revalidate paths that might show notification counts for the recipient
@@ -272,13 +275,10 @@ export async function createNotification(params: {
     revalidatePath('/student/dashboard');
     revalidatePath('/educator/dashboard');
 
-    return createdNotification.id;
+    return createIdResponse(createdNotification.id);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error creating notification: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error creating notification: ${errorMessage}`);
   }
 } 

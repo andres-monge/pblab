@@ -22,6 +22,13 @@ import {
   validateRequiredString,
   validateOptionalString
 } from "@/lib/shared/validation";
+import {
+  CreateResult,
+  UpdateResult,
+  createIdResponse,
+  createMessageResponse,
+  createErrorResponse
+} from "@/lib/shared/action-types";
 
 type Project = Database["public"]["Tables"]["projects"]["Insert"];
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -85,10 +92,9 @@ export interface UpdateProjectLearningGoalsParams {
  * that tracks their progress through the PBL workflow phases.
  * 
  * @param params - Project creation parameters
- * @returns Promise resolving to the created project ID
- * @throws Error if user is not authenticated, not an educator, or invalid parameters
+ * @returns Promise resolving to CreateResult with project ID or error
  */
-export async function createProject(params: CreateProjectParams): Promise<string> {
+export async function createProject(params: CreateProjectParams): Promise<CreateResult> {
   const { problemId, teamId } = params;
 
   // Validate required parameters
@@ -110,7 +116,7 @@ export async function createProject(params: CreateProjectParams): Promise<string
       .single();
 
     if (problemError || !problem) {
-      throw new Error('Problem not found or you do not have permission to use it');
+      return createErrorResponse('Problem not found or you do not have permission to use it');
     }
 
     // Verify the team exists and is in the same course as the problem
@@ -121,12 +127,12 @@ export async function createProject(params: CreateProjectParams): Promise<string
       .single();
 
     if (teamError || !team) {
-      throw new Error('Team not found or you do not have permission to manage it');
+      return createErrorResponse('Team not found or you do not have permission to manage it');
     }
 
     // Ensure team and problem are in the same course
     if (team.course_id !== problem.course_id) {
-      throw new Error('Team and problem must be in the same course');
+      return createErrorResponse('Team and problem must be in the same course');
     }
 
     // Check if a project already exists for this team and problem
@@ -139,11 +145,11 @@ export async function createProject(params: CreateProjectParams): Promise<string
 
     if (existingError && existingError.code !== 'PGRST116') {
       // PGRST116 is "not found" which is expected if no project exists
-      throw new Error(`Failed to check for existing project: ${existingError.message}`);
+      return createErrorResponse(`Failed to check for existing project: ${existingError.message}`);
     }
 
     if (existingProject) {
-      throw new Error('A project already exists for this team and problem combination');
+      return createErrorResponse('A project already exists for this team and problem combination');
     }
 
     // Create the project
@@ -161,7 +167,7 @@ export async function createProject(params: CreateProjectParams): Promise<string
 
     if (projectCreateError || !createdProject) {
       console.error('Failed to create project:', projectCreateError);
-      throw new Error(`Failed to create project: ${projectCreateError?.message || 'Unknown error'}`);
+      return createErrorResponse(`Failed to create project: ${projectCreateError?.message || 'Unknown error'}`);
     }
 
     // Revalidate relevant paths to show new project
@@ -169,14 +175,11 @@ export async function createProject(params: CreateProjectParams): Promise<string
     revalidatePath('/student/dashboard');
     revalidatePath('/dashboard');
 
-    return createdProject.id;
+    return createIdResponse(createdProject.id);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error creating project: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error creating project: ${errorMessage}`);
   }
 }
 
@@ -187,10 +190,9 @@ export async function createProject(params: CreateProjectParams): Promise<string
  * Students can advance phases, but only educators can close projects.
  * 
  * @param params - Project phase update parameters
- * @returns Promise resolving to success message
- * @throws Error if user is not authenticated, lacks permission, or invalid transition
+ * @returns Promise resolving to UpdateResult with success message or error
  */
-export async function updateProjectPhase(params: UpdateProjectPhaseParams): Promise<string> {
+export async function updateProjectPhase(params: UpdateProjectPhaseParams): Promise<UpdateResult> {
   const { projectId, newPhase } = params;
 
   // Validate required parameters
@@ -218,12 +220,12 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
 
     // Allow backward transitions for educators/admins, but students can only advance
     if (!hasEducatorPermissions(user.role) && newIndex <= currentIndex) {
-      throw new Error('Students can only advance to the next phase in the workflow');
+      return createErrorResponse('Students can only advance to the next phase in the workflow');
     }
 
     // Prevent invalid transitions (e.g., skipping phases)
     if (!hasEducatorPermissions(user.role) && newIndex > currentIndex + 1) {
-      throw new Error('Cannot skip phases. Please advance one phase at a time.');
+      return createErrorResponse('Cannot skip phases. Please advance one phase at a time.');
     }
 
     // Update the project phase
@@ -237,7 +239,7 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
 
     if (updateError) {
       console.error('Failed to update project phase:', updateError);
-      throw new Error(`Failed to update project phase: ${updateError.message}`);
+      return createErrorResponse(`Failed to update project phase: ${updateError.message}`);
     }
 
     // Revalidate relevant paths to reflect phase change
@@ -246,14 +248,11 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
     revalidatePath('/dashboard');
     revalidatePath(`/p/${validatedProjectId}`);
 
-    return `Project phase updated to: ${validatedPhase}`;
+    return createMessageResponse(`Project phase updated to: ${validatedPhase}`);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error updating project phase: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error updating project phase: ${errorMessage}`);
   }
 }
 
@@ -264,10 +263,9 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
  * Automatically transitions project to 'post' phase if still in 'research'.
  * 
  * @param params - Project report URL parameters
- * @returns Promise resolving to success message
- * @throws Error if user is not authenticated or lacks permission
+ * @returns Promise resolving to UpdateResult with success message or error
  */
-export async function updateProjectReportUrl(params: UpdateProjectReportParams): Promise<string> {
+export async function updateProjectReportUrl(params: UpdateProjectReportParams): Promise<UpdateResult> {
   const { projectId, reportUrl } = params;
 
   // Validate required parameters
@@ -299,7 +297,7 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
 
     if (updateError) {
       console.error('Failed to update project report URL:', updateError);
-      throw new Error(`Failed to update project report URL: ${updateError.message}`);
+      return createErrorResponse(`Failed to update project report URL: ${updateError.message}`);
     }
 
     // Revalidate relevant paths
@@ -309,14 +307,11 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
     revalidatePath(`/p/${validatedProjectId}`);
 
     const phaseMessage = project.phase === 'research' ? ' and advanced to post-discussion phase' : '';
-    return `Final report URL updated successfully${phaseMessage}`;
+    return createMessageResponse(`Final report URL updated successfully${phaseMessage}`);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error updating project report URL: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error updating project report URL: ${errorMessage}`);
   }
 }
 
@@ -327,10 +322,9 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
  * for AI assessment purposes. Used by Google Drive integration.
  * 
  * @param params - Project report content parameters
- * @returns Promise resolving to success message
- * @throws Error if user is not authenticated or lacks permission
+ * @returns Promise resolving to UpdateResult with success message or error
  */
-export async function updateProjectReportContent(params: UpdateProjectReportContentParams): Promise<string> {
+export async function updateProjectReportContent(params: UpdateProjectReportContentParams): Promise<UpdateResult> {
   const { projectId, reportUrl, reportContent } = params;
 
   // Validate required parameters
@@ -364,7 +358,7 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
 
     if (updateError) {
       console.error('Failed to update project report content:', updateError);
-      throw new Error(`Failed to update project report content: ${updateError.message}`);
+      return createErrorResponse(`Failed to update project report content: ${updateError.message}`);
     }
 
     // Revalidate relevant paths
@@ -374,14 +368,11 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
     revalidatePath(`/p/${validatedProjectId}`);
 
     const phaseMessage = project.phase === 'research' ? ' and advanced to post-discussion phase' : '';
-    return `Final report submitted successfully${phaseMessage}. Content cached for assessment.`;
+    return createMessageResponse(`Final report submitted successfully${phaseMessage}. Content cached for assessment.`);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error updating project report content: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error updating project report content: ${errorMessage}`);
   }
 }
 
@@ -393,10 +384,9 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
  * and provide context for AI assistance.
  * 
  * @param params - Project learning goals parameters
- * @returns Promise resolving to success message
- * @throws Error if user is not authenticated or lacks permission
+ * @returns Promise resolving to UpdateResult with success message or error
  */
-export async function updateProjectLearningGoals(params: UpdateProjectLearningGoalsParams): Promise<string> {
+export async function updateProjectLearningGoals(params: UpdateProjectLearningGoalsParams): Promise<UpdateResult> {
   const { projectId, goals } = params;
 
   // Validate required parameters
@@ -424,7 +414,7 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
 
     if (updateError) {
       console.error('Failed to update project learning goals:', updateError);
-      throw new Error(`Failed to update project learning goals: ${updateError.message}`);
+      return createErrorResponse(`Failed to update project learning goals: ${updateError.message}`);
     }
 
     // Revalidate relevant paths to reflect learning goals change
@@ -433,13 +423,10 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
     revalidatePath('/dashboard');
     revalidatePath(`/p/${validatedProjectId}`);
 
-    return validatedGoals ? 'Learning goals updated successfully' : 'Learning goals cleared successfully';
+    return createMessageResponse(validatedGoals ? 'Learning goals updated successfully' : 'Learning goals cleared successfully');
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error updating project learning goals: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error updating project learning goals: ${errorMessage}`);
   }
 } 

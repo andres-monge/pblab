@@ -6,6 +6,15 @@ import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 import { requireProjectCreationPermissions } from "@/lib/shared/authorization-utils";
+import {
+  UpdateResult,
+  TokenResult,
+  QueryResult,
+  createMessageResponse,
+  createTokenResponse,
+  createSuccessResponse,
+  createErrorResponse
+} from "@/lib/shared/action-types";
 
 type TeamsUser = Database["public"]["Tables"]["teams_users"]["Insert"];
 
@@ -44,15 +53,14 @@ export interface InviteTokenPayload {
  * and are not already a member.
  * 
  * @param params - Team joining parameters
- * @returns Promise resolving to success message
- * @throws Error if user is not authenticated, team doesn't exist, or user is already a member
+ * @returns Promise resolving to UpdateResult with success message or error
  */
-export async function joinTeam(params: JoinTeamParams): Promise<string> {
+export async function joinTeam(params: JoinTeamParams): Promise<UpdateResult> {
   const { teamId } = params;
 
   // Validate required parameters
   if (!teamId || typeof teamId !== 'string') {
-    throw new Error('teamId is required and must be a valid string');
+    return createErrorResponse('teamId is required and must be a valid string');
   }
 
   try {
@@ -69,7 +77,7 @@ export async function joinTeam(params: JoinTeamParams): Promise<string> {
       .single();
 
     if (teamError || !team) {
-      throw new Error('Team not found or you do not have permission to view it');
+      return createErrorResponse('Team not found or you do not have permission to view it');
     }
 
     // Check if user is already a member of this team
@@ -82,11 +90,11 @@ export async function joinTeam(params: JoinTeamParams): Promise<string> {
 
     if (membershipCheckError && membershipCheckError.code !== 'PGRST116') {
       // PGRST116 is "not found" which is expected if user is not a member
-      throw new Error(`Failed to check team membership: ${membershipCheckError.message}`);
+      return createErrorResponse(`Failed to check team membership: ${membershipCheckError.message}`);
     }
 
     if (existingMembership) {
-      throw new Error('You are already a member of this team');
+      return createErrorResponse('You are already a member of this team');
     }
 
     // Add user to team
@@ -101,21 +109,18 @@ export async function joinTeam(params: JoinTeamParams): Promise<string> {
 
     if (insertError) {
       console.error('Failed to join team:', insertError);
-      throw new Error(`Failed to join team: ${insertError.message}`);
+      return createErrorResponse(`Failed to join team: ${insertError.message}`);
     }
 
     // Revalidate student dashboard to show new team/projects
     revalidatePath('/student/dashboard');
     revalidatePath('/dashboard');
 
-    return `Successfully joined team: ${team.name}`;
+    return createMessageResponse(`Successfully joined team: ${team.name}`);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error joining team: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error joining team: ${errorMessage}`);
   }
 }
 
@@ -126,15 +131,14 @@ export async function joinTeam(params: JoinTeamParams): Promise<string> {
  * that can be used in invite links.
  * 
  * @param params - Token generation parameters
- * @returns Promise resolving to the JWT token string
- * @throws Error if user is not authenticated, not an educator, or team access denied
+ * @returns Promise resolving to TokenResult with JWT token or error
  */
-export async function generateInviteToken(params: GenerateInviteTokenParams): Promise<string> {
+export async function generateInviteToken(params: GenerateInviteTokenParams): Promise<TokenResult> {
   const { teamId } = params;
 
   // Validate required parameters
   if (!teamId || typeof teamId !== 'string') {
-    throw new Error('teamId is required and must be a valid string');
+    return createErrorResponse('teamId is required and must be a valid string');
   }
 
   try {
@@ -152,14 +156,14 @@ export async function generateInviteToken(params: GenerateInviteTokenParams): Pr
       .single();
 
     if (teamError || !team) {
-      throw new Error('Team not found or you do not have permission to manage it');
+      return createErrorResponse('Team not found or you do not have permission to manage it');
     }
 
     // Get JWT secret from environment
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       console.error('JWT_SECRET environment variable is not set');
-      throw new Error('Server configuration error: Unable to generate invite token');
+      return createErrorResponse('Server configuration error: Unable to generate invite token');
     }
 
     // Create JWT payload
@@ -174,14 +178,11 @@ export async function generateInviteToken(params: GenerateInviteTokenParams): Pr
       audience: 'team-invite'
     });
 
-    return token;
+    return createTokenResponse(token);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error generating invite token: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error generating invite token: ${errorMessage}`);
   }
 }
 
@@ -192,13 +193,12 @@ export async function generateInviteToken(params: GenerateInviteTokenParams): Pr
  * if the token is valid.
  * 
  * @param token - JWT token string to verify
- * @returns Promise resolving to the decoded token payload
- * @throws Error if token is invalid, expired, or malformed
+ * @returns Promise resolving to QueryResult with decoded token payload or error
  */
-export async function verifyInviteToken(token: string): Promise<InviteTokenPayload> {
+export async function verifyInviteToken(token: string): Promise<QueryResult<InviteTokenPayload>> {
   // Validate required parameters
   if (!token || typeof token !== 'string') {
-    throw new Error('Token is required and must be a valid string');
+    return createErrorResponse('Token is required and must be a valid string');
   }
 
   try {
@@ -206,7 +206,7 @@ export async function verifyInviteToken(token: string): Promise<InviteTokenPaylo
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       console.error('JWT_SECRET environment variable is not set');
-      throw new Error('Server configuration error: Unable to verify invite token');
+      return createErrorResponse('Server configuration error: Unable to verify invite token');
     }
 
     // Verify and decode JWT token
@@ -217,11 +217,11 @@ export async function verifyInviteToken(token: string): Promise<InviteTokenPaylo
 
     // Validate decoded payload structure
     if (!decoded.teamId || typeof decoded.teamId !== 'string') {
-      throw new Error('Invalid token payload: missing or invalid teamId');
+      return createErrorResponse('Invalid token payload: missing or invalid teamId');
     }
 
     if (!decoded.exp || typeof decoded.exp !== 'number') {
-      throw new Error('Invalid token payload: missing or invalid expiration');
+      return createErrorResponse('Invalid token payload: missing or invalid expiration');
     }
 
     // Additional verification: ensure team still exists
@@ -233,30 +233,26 @@ export async function verifyInviteToken(token: string): Promise<InviteTokenPaylo
       .single();
 
     if (teamError || !team) {
-      throw new Error('This invite link is no longer valid - the team may have been deleted');
+      return createErrorResponse('This invite link is no longer valid - the team may have been deleted');
     }
 
-    return decoded;
+    return createSuccessResponse(decoded);
   } catch (error) {
     // Handle specific JWT errors with user-friendly messages
     if (error instanceof jwt.TokenExpiredError) {
-      throw new Error('This invite link has expired. Please request a new invitation.');
+      return createErrorResponse('This invite link has expired. Please request a new invitation.');
     }
     
     if (error instanceof jwt.JsonWebTokenError) {
-      throw new Error('This invite link is invalid or has been tampered with.');
+      return createErrorResponse('This invite link is invalid or has been tampered with.');
     }
 
     if (error instanceof jwt.NotBeforeError) {
-      throw new Error('This invite link is not yet valid.');
+      return createErrorResponse('This invite link is not yet valid.');
     }
 
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
-    
     // Handle unexpected error types
-    throw new Error(`Unexpected error verifying invite token: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error verifying invite token: ${errorMessage}`);
   }
 } 

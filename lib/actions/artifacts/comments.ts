@@ -14,6 +14,13 @@ import {
   validateRequiredString,
   validateStringArray
 } from "@/lib/shared/validation";
+import {
+  QueryResult,
+  CreateResult,
+  createSuccessResponse,
+  createIdResponse,
+  createErrorResponse
+} from "@/lib/shared/action-types";
 import type { CreateCommentParams, Comment } from './index';
 
 /**
@@ -23,10 +30,9 @@ import type { CreateCommentParams, Comment } from './index';
  * to the project and can be mentioned in artifact comments.
  * 
  * @param projectId - ID of the project to get mentionable users for
- * @returns Promise resolving to array of users with id, name, email
- * @throws Error if project not found or user lacks permission
+ * @returns Promise resolving to QueryResult with array of users or error
  */
-export async function getProjectMentionableUsers(projectId: string): Promise<Array<{id: string; name: string | null; email: string}>> {
+export async function getProjectMentionableUsers(projectId: string): Promise<QueryResult<Array<{id: string; name: string | null; email: string}>>> {
   // Validate required parameters
   const validatedProjectId = validateProjectId(projectId);
 
@@ -51,7 +57,7 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
       .single();
 
     if (projectError || !project) {
-      throw new Error('Project not found or you do not have permission to access it');
+      return createErrorResponse('Project not found or you do not have permission to access it');
     }
 
     // First get team member IDs
@@ -62,7 +68,7 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
 
     if (teamUserIdsError) {
       console.error('Failed to fetch team user IDs:', teamUserIdsError);
-      throw new Error(`Failed to fetch team user IDs: ${teamUserIdsError.message}`);
+      return createErrorResponse(`Failed to fetch team user IDs: ${teamUserIdsError.message}`);
     }
 
     // Get team members (students who belong to this project's team)
@@ -77,7 +83,7 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
 
       if (membersError) {
         console.error('Failed to fetch team members:', membersError);
-        throw new Error(`Failed to fetch team members: ${membersError.message}`);
+        return createErrorResponse(`Failed to fetch team members: ${membersError.message}`);
       }
       teamMembers = members || [];
     }
@@ -94,7 +100,7 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
 
       if (courseError) {
         console.error('Failed to fetch course:', courseError);
-        throw new Error(`Failed to fetch course: ${courseError.message}`);
+        return createErrorResponse(`Failed to fetch course: ${courseError.message}`);
       }
 
       // Then get the educator user details
@@ -107,7 +113,7 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
 
         if (educatorsError) {
           console.error('Failed to fetch course educators:', educatorsError);
-          throw new Error(`Failed to fetch course educators: ${educatorsError.message}`);
+          return createErrorResponse(`Failed to fetch course educators: ${educatorsError.message}`);
         }
         courseEducators = educators || [];
       }
@@ -119,14 +125,11 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
       array.findIndex(u => u.id === user.id) === index
     );
 
-    return uniqueUsers;
+    return createSuccessResponse(uniqueUsers);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error fetching mentionable users: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error fetching mentionable users: ${errorMessage}`);
   }
 }
 
@@ -137,10 +140,9 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Arr
  * for collaborative discussion.
  * 
  * @param params - Comment creation parameters
- * @returns Promise resolving to the created comment ID
- * @throws Error if user not authenticated, artifact not found, or lacks permission
+ * @returns Promise resolving to CreateResult with comment ID or error
  */
-export async function createComment(params: CreateCommentParams): Promise<string> {
+export async function createComment(params: CreateCommentParams): Promise<CreateResult> {
   const { artifactId, body, mentionedUserIds = [] } = params;
 
   // Validate required parameters
@@ -172,7 +174,7 @@ export async function createComment(params: CreateCommentParams): Promise<string
       .single();
 
     if (artifactError || !artifact) {
-      throw new Error('Artifact not found or you do not have permission to access it');
+      return createErrorResponse('Artifact not found or you do not have permission to access it');
     }
 
     // Check if project is closed (prevent comments in closed projects)
@@ -202,33 +204,40 @@ export async function createComment(params: CreateCommentParams): Promise<string
 
     if (commentError || !createdComment) {
       console.error('Failed to create comment:', commentError);
-      throw new Error(`Failed to create comment: ${commentError?.message || 'Unknown error'}`);
+      return createErrorResponse(`Failed to create comment: ${commentError?.message || 'Unknown error'}`);
     }
 
     // Process mentions if any were provided
     if (validatedMentionedUserIds && validatedMentionedUserIds.length > 0) {
       try {
         // Get mentionable users for this project to validate mentions
-        const mentionableUsers = await getProjectMentionableUsers(artifact.project_id);
-        const mentionableUserIds = mentionableUsers.map(u => u.id);
+        const mentionableUsersResult = await getProjectMentionableUsers(artifact.project_id);
+        if (!mentionableUsersResult.success) {
+          console.error('Failed to get mentionable users for mentions:', mentionableUsersResult.error);
+        } else {
+          const mentionableUserIds = mentionableUsersResult.data.map(u => u.id);
 
-        // Deduplicate mentioned user IDs and filter to only valid/mentionable users
-        const uniqueMentionedUserIds = [...new Set(validatedMentionedUserIds)]
-          .filter(userId => userId !== user.id) // Skip self-mentions
-          .filter(userId => mentionableUserIds.includes(userId)); // Only allow mentionable users
+          // Deduplicate mentioned user IDs and filter to only valid/mentionable users
+          const uniqueMentionedUserIds = [...new Set(validatedMentionedUserIds)]
+            .filter(userId => userId !== user.id) // Skip self-mentions
+            .filter(userId => mentionableUserIds.includes(userId)); // Only allow mentionable users
 
-        // Create notifications for each valid mentioned user
-        for (const mentionedUserId of uniqueMentionedUserIds) {
-          try {
-            await createNotification({
-              recipientId: mentionedUserId,
-              type: 'mention_in_comment',
-              referenceId: createdComment.id,
-              referenceUrl: `/p/${artifact.project_id}`,
-            });
-          } catch (notificationError) {
-            // Log the error but don't fail the comment creation
-            console.error(`Failed to create mention notification for user ${mentionedUserId}:`, notificationError);
+          // Create notifications for each valid mentioned user
+          for (const mentionedUserId of uniqueMentionedUserIds) {
+            try {
+              const notificationResult = await createNotification({
+                recipientId: mentionedUserId,
+                type: 'mention_in_comment',
+                referenceId: createdComment.id,
+                referenceUrl: `/p/${artifact.project_id}`,
+              });
+              if (!notificationResult.success) {
+                console.error(`Failed to create mention notification for user ${mentionedUserId}:`, notificationResult.error);
+              }
+            } catch (notificationError) {
+              // Log the error but don't fail the comment creation
+              console.error(`Failed to create mention notification for user ${mentionedUserId}:`, notificationError);
+            }
           }
         }
       } catch (mentionError) {
@@ -240,13 +249,10 @@ export async function createComment(params: CreateCommentParams): Promise<string
     // Revalidate project page to show new comment
     revalidatePath(`/p/${artifact.project_id}`);
 
-    return createdComment.id;
+    return createIdResponse(createdComment.id);
   } catch (error) {
-    // Re-throw with context if it's already an Error object
-    if (error instanceof Error) {
-      throw error;
-    }
     // Handle unexpected error types
-    throw new Error(`Unexpected error creating comment: ${String(error)}`);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error creating comment: ${errorMessage}`);
   }
 }
