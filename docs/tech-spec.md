@@ -93,12 +93,30 @@ The project will be built upon the provided Next.js starter template. New direct
 │   └── ui/                      # shadcn/ui components (from template)
 ├── lib/
 │   ├── actions/                 # Server Actions for DB mutations
-│   │   ├── projects.ts
-│   │   ├── teams.ts
-│   │   ├── artifacts.ts
-│   │   └── notifications.ts
+│   │   ├── shared/              # Common utilities and patterns
+│   │   │   ├── auth-helpers.ts  # Reusable authorization functions
+│   │   │   ├── validation.ts    # Common parameter validation
+│   │   │   └── responses.ts     # Standardized response types
+│   │   ├── artifacts/
+│   │   │   ├── crud.ts          # Core CRUD operations
+│   │   │   ├── comments.ts      # Comment functionality
+│   │   │   └── permissions.ts   # Authorization helpers
+│   │   ├── projects/
+│   │   │   ├── core.ts          # Basic project operations
+│   │   │   ├── phases.ts        # Phase management logic
+│   │   │   └── reports.ts       # Report handling
+│   │   ├── teams.ts             # Team management (appropriate size)
+│   │   ├── notifications.ts     # Notification management (appropriate size)
+│   │   └── ai.ts                # AI interaction logging
+│   ├── security/
+│   │   ├── file-validation.ts   # File type and security validation
+│   │   ├── permissions.ts       # Permission checking utilities
+│   │   └── rate-limiting.ts     # Rate limiting helpers
+│   ├── types/
+│   │   ├── actions.ts           # Action-specific types
+│   │   ├── responses.ts         # Standardized response interfaces
+│   │   └── security.ts          # Security-related types
 │   ├── db.ts                    # Supabase client and query helpers
-│   ├── types.ts                 # Shared TypeScript type definitions
 │   └── utils.ts                 # Utility functions (from template)
 ├── public/                      # Static assets
 ├── scripts/

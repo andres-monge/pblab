@@ -79,6 +79,31 @@ The application uses a comprehensive schema for Problem-Based Learning workflows
 - Server actions in `lib/actions/` handle all data mutations
 - Real-time features use Supabase subscriptions for collaborative workflows
 
+## Code Quality Standards
+
+### File Organization
+- Individual files should not exceed 500 lines when possible
+- Split large modules into focused sub-modules following single responsibility principle
+- Use clear separation of concerns between business logic, validation, and authorization
+
+### TypeScript Best Practices
+- Use discriminated unions for consistent action response types
+- Implement branded types for IDs to prevent mixing (ProjectId, UserId, TeamId)
+- Apply TypeScript strict mode for all files
+- Create structured error classes instead of generic string errors
+
+### Error Handling & Validation
+- Extract common validation patterns into reusable utilities
+- Provide user-friendly error messages for production
+- Log technical details for debugging while hiding from end users
+- Implement parameter validation at action boundaries
+
+### Security & Authorization
+- Create reusable authorization helper functions
+- Use RLS policies as primary authorization with server-side validation as secondary
+- Centralize file type validation logic
+- Validate all user inputs and use parameterized queries
+
 ### Note about the person using Claude Code
 
 I am a beginner with 6 months of experience of building with AI. My aim is to go from a non-technical to a technical person on my building journey. As you work, provide a brief overview of the applicable programming, problem-solving and systems thinking concepts, so that I have the capacity to correctly understand and orchestrate you as an AI coding agent.

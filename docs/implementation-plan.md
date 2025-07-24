@@ -151,6 +151,52 @@ The mention system now supports user-selection based workflow where frontend com
 
 -----
 
+## Phase 4 Optimization: Code Quality & Structure Enhancement
+
+**Summary**: Refactor Phase 4 backend code to improve maintainability, code organization, and prepare for Phase 5 frontend development. Focus on extracting reusable patterns, improving file structure, and enhancing error handling.
+
+**Key Goals**: Split large files, create shared utilities, standardize error handling, and establish patterns for frontend integration.
+
+### Code Organization & Structure Optimization
+
+[x] Step 18.1: Extract File Security Module
+**Task**: Create a dedicated security module to handle file validation logic. Currently, 75 lines of file type definitions are mixed with business logic in `artifacts.ts` (710 lines total). This will prepare for frontend file upload components in Phase 5.
+**Suggested Files for Context**: `lib/actions/artifacts.ts`, existing patterns in `lib/` directory
+**Step Dependencies**: None
+**User Instructions**: None
+
+[x] Step 18.2: Split Large Artifacts Action File
+**Task**: Refactor `lib/actions/artifacts.ts` (710 lines) into focused modules: CRUD operations, comment functionality, and permissions. This improves maintainability and follows single responsibility principle.
+**Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/projects.ts`, other files in `lib/actions/`
+**Step Dependencies**: Step 18.1 completed
+**User Instructions**: None
+
+[ ] Step 18.3: Create Shared Authorization Helpers
+**Task**: Extract repetitive authorization patterns from `projects.ts` and `artifacts.ts` into reusable helpers. This reduces 200+ lines of duplicated permission checking code.
+**Suggested Files for Context**: `lib/actions/projects.ts`, `lib/actions/artifacts.ts`
+**Step Dependencies**: Step 18.2 completed
+**User Instructions**: None
+
+[ ] Step 18.4: Implement Shared Validation Utilities
+**Task**: Create common validation functions for projectId, userId, and other parameters that are validated repeatedly across action files. This will be essential for Phase 5 form validation.
+**Suggested Files for Context**: `lib/actions/projects.ts`, `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`
+**Step Dependencies**: None
+**User Instructions**: None
+
+[ ] Step 18.5: Standardize Action Response Types
+**Task**: Create consistent return types for all server actions using discriminated unions. This improves TypeScript safety and makes error handling predictable for frontend components.
+**Suggested Files for Context**: All files in `lib/actions/`, existing TypeScript interfaces in the project
+**Step Dependencies**: None
+**User Instructions**: None
+
+[ ] Step 18.6: Enhance Error Handling with Structured Classes
+**Task**: Replace generic error strings with structured error classes that provide better debugging information and user-friendly messages for frontend display.
+**Suggested Files for Context**: `lib/actions/projects.ts`, `lib/actions/artifacts.ts`, error handling patterns in existing code
+**Step Dependencies**: Step 18.5 completed
+**User Instructions**: None
+
+-----
+
 ## Phase 5: Frontend Implementation
 
 This phase focuses on building the UI for all features, including the new enhancements.
@@ -187,8 +233,8 @@ This phase focuses on building the UI for all features, including the new enhanc
 
 [ ] Step 24: Implement Remaining Project Workspace Components
 **Task**: On the project page (`app/p/[projectId]/page.tsx`), implement the remaining components for the core workflow: `<ArtifactUploader />`, `<ArtifactCard />`, and `<CommentThread />`. Wire up the comment form to the `createComment` server action, which now handles user-selection based @mentions. Include a mention selector component that allows users to select from available team members and educators for the project.
-**Suggested Files for Context**: `lib/actions/artifacts.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`
-**Step Dependencies**: Step 16, Step 22
+**Suggested Files for Context**: `lib/actions/artifacts/crud.ts`, `lib/actions/artifacts/comments.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`, `lib/security/file-validation.ts`
+**Step Dependencies**: Step 16, Step 22, Phase 4 Optimization completed
 **User Instructions**: Configure a "artifacts" bucket in Supabase Storage with appropriate RLS policies.
 
 -----
@@ -199,8 +245,8 @@ This section includes steps for creating tests to ensure application quality and
 
 [ ] Step 25: Setup and Write Unit Tests
 **Task**: Configure Jest for unit testing. Create tests for key new server actions. For example, test the user-selection mention logic in `createComment`, validate `getProjectMentionableUsers` returns correct users, and ensure `getNotifications` correctly respects RLS (by mocking the user).
-**Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`, `.docs/tech-spec.md`
-**Step Dependencies**: All backend feature steps.
+**Suggested Files for Context**: `lib/actions/artifacts/comments.ts`, `lib/actions/shared/validation.ts`, `lib/actions/notifications.ts`, `lib/security/file-validation.ts`, `docs/tech-spec.md`
+**Step Dependencies**: All backend feature steps, Phase 4 Optimization completed.
 **User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and then run `npm test`.
 
 [ ] Step 26: IMPORTANT: Setup and Write E2E Tests
