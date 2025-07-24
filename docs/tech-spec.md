@@ -188,8 +188,8 @@ The project will be built upon the provided Next.js starter template. New direct
         - The AI has **contextual memory** of the entire conversation for that project, allowing for more relevant and continuous guidance.
             
     5. **Comments & Notifications:** Artifacts are displayed in `<ArtifactCard />` components, each with a `<CommentThread />`.
-        - Users can type `@username` to mention a teammate.
-        - A valid mention will trigger a **notification** for the mentioned user, visible in the app's main header.
+        - Users can select teammates and educators from a dropdown to mention them in comments.
+        - Selected mentions will trigger **notifications** for the mentioned users, visible in the app's main header.
         
 - **Error Handling:**
     
@@ -457,7 +457,9 @@ Server actions will be the primary mechanism for client components to mutate dat
     
 - **`deleteArtifact(artifactId)`**: Deletes an artifact. Checks if the user is the owner or an educator.
     
-- **`createComment(data)`**: Creates a new comment. Input: `{ artifactId, authorId, body }`. **After saving, it parses the body for `@mentions` and creates records in the `notifications` table.**
+- **`createComment(data)`**: Creates a new comment. Input: `{ artifactId, authorId, body, mentionedUserIds? }`. **After saving, it validates the mentioned user IDs and creates records in the `notifications` table for each valid mention.**
+
+- **`getProjectMentionableUsers(projectId)`**: Returns team members and course educators available for mention in the given project.
     
 - **`createProblem(data)`**: A transactional server action to create a problem and its associated rubric/criteria.
     

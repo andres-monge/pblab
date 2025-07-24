@@ -418,11 +418,52 @@ This phase adds the backend infrastructure for the new Learning Goals, AI Tutor 
 
 All functions follow established patterns from existing server actions, use proper TypeScript types from `lib/db.types.ts`, integrate with Next.js cache revalidation, and successfully pass TypeScript compilation and ESLint validation. Ready for integration with frontend components in upcoming steps.
 
-[ ] Step 16: IMPORTANT: Enhance `createComment` Action for @Mentions
-**Task**: Modify the `createComment` server action in `lib/actions/artifacts.ts`. After a comment is successfully inserted, parse its `body` for `@mention` patterns (e.g., `@username` or `@user-id`). For each valid mention found, query the `users` table to find the corresponding user ID, and then call a new helper function to create a record in the `notifications` table.
+[x] Step 16: IMPORTANT: Enhance `createComment` Action for User Selection @Mentions ✅ COMPLETED
+**Task**: Modify the `createComment` server action in `lib/actions/artifacts.ts` to support a user-selection based mention system. Update the `CreateCommentParams` interface to include `mentionedUserIds?: string[]`. Create a helper function `getProjectMentionableUsers(projectId)` that returns team members and course educators available for mention. After a comment is successfully inserted, validate the mentioned user IDs and create notification records for each valid mention using the existing `createNotification` helper function.
 **Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 15
 **User Instructions**: None
+**Implementation Notes**: Successfully implemented comprehensive user-selection based @mention system for comments:
+
+**Interface Updates:**
+- Enhanced `CreateCommentParams` interface in `lib/actions/artifacts.ts` to include optional `mentionedUserIds?: string[]` parameter
+- Added proper TypeScript validation for the new parameter ensuring it's an array of valid string user IDs
+
+**Helper Function Implementation:**
+- Created `getProjectMentionableUsers(projectId: string)` function that returns users available for mentions in a specific project
+- Function returns both team members (students in the project's team) and course educators (educators who administer the course)
+- Implemented proper database queries with authentication checks and RLS policy integration
+- Added deduplication logic to handle users who might appear in both categories
+- Comprehensive error handling with user-friendly messages
+
+**Enhanced Comment Creation:**
+- Modified `createComment` function to extract and validate `mentionedUserIds` parameter
+- Added mention processing after successful comment creation to maintain atomic operations
+- Implemented validation logic that filters mentioned users to only include valid/mentionable users for the project
+- Added self-mention prevention (users cannot mention themselves)
+- Integrated with existing `createNotification` helper to create `'mention_in_comment'` notifications
+- Used graceful error handling where mention failures don't prevent comment creation
+
+**Security Features:**
+- Validates mentioned user IDs exist and have permission to be mentioned in the project context
+- Deduplicates user IDs to prevent notification spam
+- Follows existing authentication and authorization patterns
+- RLS policies ensure proper data access control
+
+**Technical Implementation:**
+- Non-breaking changes: new parameter is optional, existing functionality unchanged
+- Atomic operations: comment creation happens first, mentions processed after
+- Graceful degradation: mention failures logged but don't break comment creation
+- Proper database queries with efficient user fetching and validation
+- Integration with existing notification infrastructure from Step 15
+
+**Verification:**
+- Successfully passed TypeScript compilation with `npm run build` (0 errors)
+- Passed ESLint validation with `npm run lint` (0 warnings)
+- All functions follow established codebase patterns and conventions
+- Ready for frontend integration in upcoming steps
+
+The mention system now supports user-selection based workflow where frontend components can provide arrays of user IDs to mention, and the backend will validate permissions, create notifications, and ensure secure operation.
 
 [ ] Step 17: IMPORTANT: Create API Route for AI-Powered Goal Suggestions
 **Task**: Create the API route at `app/api/ai/suggest-goals/route.ts`. This `POST` route should accept a `projectId`, fetch the associated problem's title and description for context, call the Gemini API to generate suggestions, log the interaction using `logAiUsage`, and return the suggestions.
@@ -473,7 +514,7 @@ This phase focuses on building the UI for all features, including the new enhanc
 **User Instructions**: None
 
 [ ] Step 24: Implement Remaining Project Workspace Components
-**Task**: On the project page (`app/p/[projectId]/page.tsx`), implement the remaining components for the core workflow: `<ArtifactUploader />`, `<ArtifactCard />`, and `<CommentThread />`. Wire up the comment form to the `createComment` server action, which now handles @mentions.
+**Task**: On the project page (`app/p/[projectId]/page.tsx`), implement the remaining components for the core workflow: `<ArtifactUploader />`, `<ArtifactCard />`, and `<CommentThread />`. Wire up the comment form to the `createComment` server action, which now handles user-selection based @mentions. Include a mention selector component that allows users to select from available team members and educators for the project.
 **Suggested Files for Context**: `lib/actions/artifacts.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`
 **Step Dependencies**: Step 16, Step 22
 **User Instructions**: Configure a "artifacts" bucket in Supabase Storage with appropriate RLS policies.
@@ -485,13 +526,13 @@ This phase focuses on building the UI for all features, including the new enhanc
 This section includes steps for creating tests to ensure application quality and correctness.
 
 [ ] Step 25: Setup and Write Unit Tests
-**Task**: Configure Jest for unit testing. Create tests for key new server actions. For example, test the mention-parsing logic in `createComment`, and ensure `getNotifications` correctly respects RLS (by mocking the user).
+**Task**: Configure Jest for unit testing. Create tests for key new server actions. For example, test the user-selection mention logic in `createComment`, validate `getProjectMentionableUsers` returns correct users, and ensure `getNotifications` correctly respects RLS (by mocking the user).
 **Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`, `.docs/tech-spec.md`
 **Step Dependencies**: All backend feature steps.
 **User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and then run `npm test`.
 
 [ ] Step 26: IMPORTANT: Setup and Write E2E Tests
-**Task**: Configure Playwright for end-to-end testing. Implement tests for the new feature flows: 1. A user posts a comment with an @mention, and the mentioned user receives a notification. 2. A user interacts with the Learning Goal Editor and successfully gets AI suggestions. 3. The AI Tutor chat loads and displays a shared history.
+**Task**: Configure Playwright for end-to-end testing. Implement tests for the new feature flows: 1. A user posts a comment with user-selection @mentions, and the mentioned user receives a notification. 2. A user interacts with the Learning Goal Editor and successfully gets AI suggestions. 3. The AI Tutor chat loads and displays a shared history.
 **Suggested Files for Context**: All relevant page and component files for these flows.
 **Step Dependencies**: All feature steps.
 **User Instructions**: Run `npm init playwright@latest`. Consider using the Supabase Admin API to generate direct login tokens for test users to bypass email magic links.
