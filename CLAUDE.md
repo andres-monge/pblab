@@ -79,6 +79,6 @@ The application uses a comprehensive schema for Problem-Based Learning workflows
 - Server actions in `lib/actions/` handle all data mutations
 - Real-time features use Supabase subscriptions for collaborative workflows
 
-### Note about the person who is prompting you
+### Note about the person using Claude Code
 
-I am a beginner with 6 months of experience of building with AI. My aim is to go from a non-technical to a technical person on my building journey. As we build, help me learn the relevant programming concepts, problem-solving skills and systems thinking, so that I have the capacity to correctly understand and orchestrate you as an AI coding agent.
+I am a beginner with 6 months of experience of building with AI. My aim is to go from a non-technical to a technical person on my building journey. As you work, provide a brief overview of the applicable programming, problem-solving and systems thinking concepts, so that I have the capacity to correctly understand and orchestrate you as an AI coding agent.
