@@ -131,11 +131,23 @@ The mention system now supports user-selection based workflow where frontend com
 - Constructs educational prompts using problem title/description for context-aware learning goals
 - Ready for frontend integration in upcoming Learning Goal Editor component
 
-[ ] Step 18: IMPORTANT: Update AI Tutor API for Contextual Memory
+[x] Step 18: IMPORTANT: Update AI Tutor API for Contextual Memory ✅ COMPLETED
 **Task**: Modify the `app/api/ai/tutor/route.ts` file. Update the `POST` handler to query the `ai_usage` table for all previous 'tutor' interactions associated with the `projectId`. Format this history and prepend it to the new prompt before sending it to the Gemini API.
 **Suggested Files for Context**: `app/api/ai/tutor/route.ts` (or create if not existing), `lib/actions/ai.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 12
 **User Instructions**: None
+**Implementation Notes**: Successfully created AI tutor API with contextual memory:
+- Created `app/api/ai/tutor/route.ts` with POST handler accepting `{projectId, message}`
+- Implemented conversation history retrieval from `ai_usage` table for project-specific tutor interactions
+- Built proper message formatting for Gemini API with user/model role alternation
+- Integrated contextual memory by prepending conversation history to new prompts
+- Added comprehensive system instruction for educational AI tutoring behavior
+- Included authentication, authorization, and RLS policy integration
+- Enhanced error handling for rate limits, API failures, and configuration issues
+- Integrated with existing `logAiUsage` helper for audit trails and analytics
+- Successfully passed TypeScript compilation and ESLint validation
+- API endpoint tested and responding correctly with authentication requirements
+- Ready for frontend integration in Step 23
 
 -----
 

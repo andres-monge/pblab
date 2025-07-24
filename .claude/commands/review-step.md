@@ -69,6 +69,7 @@ For each issue:
 - Be specific about file locations and line numbers
 - Consider both immediate and potential future problems
 - Focus on issues that could break functionality or compromise security
+- To find out about external documentation, use the context7 mcp server
 - Your detailed issue reports will be passed to another AI agent for implementation
 
 Start by asking which step number you should review.
