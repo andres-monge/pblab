@@ -6,6 +6,12 @@ import {
   hasEducatorPermissions, 
   hasAdminPermissions
 } from "@/lib/shared/authorization-utils";
+import { 
+  AuthenticationError, 
+  AuthorizationError, 
+  NotFoundError, 
+  DatabaseError 
+} from "@/lib/shared/errors";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -42,7 +48,10 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser> {
   // Verify user is authenticated
   const { data: { user }, error: authError } = await supabase.auth.getUser();
   if (authError || !user) {
-    throw new Error('User must be authenticated to perform this action');
+    throw new AuthenticationError(
+      authError?.message || 'No authenticated user found',
+      { authError: authError?.message }
+    );
   }
 
   // Get user role
@@ -53,7 +62,12 @@ export async function getAuthenticatedUser(): Promise<AuthenticatedUser> {
     .single();
 
   if (userError || !userData) {
-    throw new Error('Failed to verify user permissions');
+    throw new DatabaseError(
+      'get_user_role',
+      userError?.message || 'User role data not found',
+      userError ? new Error(userError.message) : undefined,
+      { userId: user.id }
+    );
   }
 
   return {
@@ -94,7 +108,16 @@ export async function verifyProjectAccess(
     .single();
 
   if (projectError || !project) {
-    throw new Error('Project not found or you do not have permission to access it');
+    if (projectError?.code === 'PGRST116') {
+      // Not found error
+      throw new NotFoundError('Project', projectId, { userId, userRole });
+    }
+    throw new DatabaseError(
+      'verify_project_access',
+      projectError?.message || 'Failed to fetch project',
+      projectError ? new Error(projectError.message) : undefined,
+      { projectId, userId, userRole }
+    );
   }
 
   // For students, verify team membership
@@ -107,7 +130,21 @@ export async function verifyProjectAccess(
       .single();
 
     if (membershipError || !membership) {
-      throw new Error('You can only access projects of teams you belong to');
+      if (membershipError?.code === 'PGRST116') {
+        // Not a team member
+        throw new AuthorizationError(
+          'access_project',
+          'User is not a member of the project team',
+          userRole,
+          { projectId, teamId: project.team_id, userId }
+        );
+      }
+      throw new DatabaseError(
+        'verify_team_membership',
+        membershipError?.message || 'Failed to verify team membership',
+        membershipError ? new Error(membershipError.message) : undefined,
+        { projectId, teamId: project.team_id, userId }
+      );
     }
   }
   // For educators and admins, RLS policies handle access control
@@ -139,7 +176,21 @@ export async function verifyTeamMembership(teamId: string, userId: string): Prom
     .single();
 
   if (membershipError || !membership) {
-    throw new Error('You can only perform this action on teams you belong to');
+    if (membershipError?.code === 'PGRST116') {
+      // Not a team member
+      throw new AuthorizationError(
+        'team_membership_required',
+        'User is not a member of this team',
+        undefined, // userRole not available in this context
+        { teamId, userId }
+      );
+    }
+    throw new DatabaseError(
+      'verify_team_membership',
+      membershipError?.message || 'Failed to verify team membership',
+      membershipError ? new Error(membershipError.message) : undefined,
+      { teamId, userId }
+    );
   }
 }
 
@@ -180,7 +231,12 @@ export async function verifyArtifactPermissions(
   if (userRole === 'student') {
     // For operations requiring ownership (like delete), check if user owns the artifact
     if (requireOwnership && artifactUploaderId !== userId) {
-      throw new Error('You can only perform this action on artifacts you uploaded');
+      throw new AuthorizationError(
+        'artifact_ownership_required',
+        'User does not own this artifact',
+        userRole,
+        { userId, artifactUploaderId, requireOwnership }
+      );
     }
 
     // Verify student is a member of the project's team
@@ -188,5 +244,10 @@ export async function verifyArtifactPermissions(
     return;
   }
 
-  throw new Error('Insufficient permissions to perform this action');
+  throw new AuthorizationError(
+    'insufficient_permissions',
+    'User role is not recognized or insufficient',
+    userRole,
+    { userId, requiredOperation: 'artifact_access' }
+  );
 }

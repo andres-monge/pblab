@@ -21,6 +21,12 @@ import {
   createIdResponse,
   createErrorResponse
 } from "@/lib/shared/action-types";
+import { 
+  isPBLabError, 
+  getUserMessage, 
+  getTechnicalDetails,
+  DatabaseError 
+} from "@/lib/shared/errors";
 import type { CreateCommentParams, Comment } from './index';
 
 /**
@@ -57,7 +63,12 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Que
       .single();
 
     if (projectError || !project) {
-      return createErrorResponse('Project not found or you do not have permission to access it');
+      throw new DatabaseError(
+        'get_project_for_mentions',
+        projectError?.message || 'Project not found',
+        projectError ? new Error(projectError.message) : undefined,
+        { projectId: validatedProjectId }
+      );
     }
 
     // First get team member IDs
@@ -67,8 +78,12 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Que
       .eq('team_id', project.team_id);
 
     if (teamUserIdsError) {
-      console.error('Failed to fetch team user IDs:', teamUserIdsError);
-      return createErrorResponse(`Failed to fetch team user IDs: ${teamUserIdsError.message}`);
+      throw new DatabaseError(
+        'get_team_user_ids',
+        teamUserIdsError.message,
+        new Error(teamUserIdsError.message),
+        { teamId: project.team_id, projectId: validatedProjectId }
+      );
     }
 
     // Get team members (students who belong to this project's team)
@@ -82,8 +97,12 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Que
         .in('id', userIds);
 
       if (membersError) {
-        console.error('Failed to fetch team members:', membersError);
-        return createErrorResponse(`Failed to fetch team members: ${membersError.message}`);
+        throw new DatabaseError(
+          'get_team_members',
+          membersError.message,
+          new Error(membersError.message),
+          { teamId: project.team_id, userIds: userIds }
+        );
       }
       teamMembers = members || [];
     }
@@ -99,8 +118,12 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Que
         .single();
 
       if (courseError) {
-        console.error('Failed to fetch course:', courseError);
-        return createErrorResponse(`Failed to fetch course: ${courseError.message}`);
+        throw new DatabaseError(
+          'get_course_admin',
+          courseError.message,
+          new Error(courseError.message),
+          { courseId: project.teams.course_id }
+        );
       }
 
       // Then get the educator user details
@@ -112,8 +135,12 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Que
           .eq('id', course.admin_id);
 
         if (educatorsError) {
-          console.error('Failed to fetch course educators:', educatorsError);
-          return createErrorResponse(`Failed to fetch course educators: ${educatorsError.message}`);
+          throw new DatabaseError(
+            'get_course_educators',
+            educatorsError.message,
+            new Error(educatorsError.message),
+            { courseAdminId: course.admin_id }
+          );
         }
         courseEducators = educators || [];
       }
@@ -127,8 +154,15 @@ export async function getProjectMentionableUsers(projectId: string): Promise<Que
 
     return createSuccessResponse(uniqueUsers);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Get mentionable users error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected get mentionable users error:', error);
     return createErrorResponse(`Unexpected error fetching mentionable users: ${errorMessage}`);
   }
 }
@@ -174,7 +208,12 @@ export async function createComment(params: CreateCommentParams): Promise<Create
       .single();
 
     if (artifactError || !artifact) {
-      return createErrorResponse('Artifact not found or you do not have permission to access it');
+      throw new DatabaseError(
+        'get_artifact_for_comment',
+        artifactError?.message || 'Artifact not found',
+        artifactError ? new Error(artifactError.message) : undefined,
+        { artifactId: validatedArtifactId, userId: user.id }
+      );
     }
 
     // Check if project is closed (prevent comments in closed projects)
@@ -203,8 +242,12 @@ export async function createComment(params: CreateCommentParams): Promise<Create
       .single();
 
     if (commentError || !createdComment) {
-      console.error('Failed to create comment:', commentError);
-      return createErrorResponse(`Failed to create comment: ${commentError?.message || 'Unknown error'}`);
+      throw new DatabaseError(
+        'create_comment',
+        commentError?.message || 'Failed to create comment',
+        commentError ? new Error(commentError.message) : undefined,
+        { commentData }
+      );
     }
 
     // Process mentions if any were provided
@@ -251,8 +294,15 @@ export async function createComment(params: CreateCommentParams): Promise<Create
 
     return createIdResponse(createdComment.id);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Comment creation error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected comment creation error:', error);
     return createErrorResponse(`Unexpected error creating comment: ${errorMessage}`);
   }
 }

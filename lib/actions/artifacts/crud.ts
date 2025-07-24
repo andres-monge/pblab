@@ -22,6 +22,13 @@ import {
   createMessageResponse,
   createErrorResponse
 } from "@/lib/shared/action-types";
+import { 
+  isPBLabError, 
+  getUserMessage, 
+  getTechnicalDetails,
+  DatabaseError,
+  ValidationError 
+} from "@/lib/shared/errors";
 import type { CreateArtifactParams, DeleteArtifactParams, Artifact } from './index';
 
 /**
@@ -45,14 +52,22 @@ export async function createArtifact(params: CreateArtifactParams): Promise<Crea
   // Validate file type for uploaded files (not external links)
   if (validatedType !== 'link') {
     if (!validateFileType(mimeType, fileName || validatedUrl)) {
-      return createErrorResponse('File type not allowed. Please upload a supported file format.');
+      throw new ValidationError(
+        'File type',
+        'not allowed. Please upload a supported file format',
+        { mimeType, fileName, url: validatedUrl }
+      );
     }
   }
 
   // Basic URL validation for external links
   if (validatedType === 'link') {
     if (!validateUrlFormat(validatedUrl)) {
-      return createErrorResponse('Invalid URL format for external link');
+      throw new ValidationError(
+        'URL format',
+        'is invalid for external link',
+        { url: validatedUrl }
+      );
     }
   }
 
@@ -82,8 +97,12 @@ export async function createArtifact(params: CreateArtifactParams): Promise<Crea
       .single();
 
     if (artifactError || !createdArtifact) {
-      console.error('Failed to create artifact:', artifactError);
-      return createErrorResponse(`Failed to create artifact: ${artifactError?.message || 'Unknown error'}`);
+      throw new DatabaseError(
+        'create_artifact',
+        artifactError?.message || 'Failed to create artifact',
+        artifactError ? new Error(artifactError.message) : undefined,
+        { artifactData }
+      );
     }
 
     // Revalidate project page to show new artifact
@@ -94,8 +113,15 @@ export async function createArtifact(params: CreateArtifactParams): Promise<Crea
 
     return createIdResponse(createdArtifact.id);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Artifact creation error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected artifact creation error:', error);
     return createErrorResponse(`Unexpected error creating artifact: ${errorMessage}`);
   }
 }
@@ -140,7 +166,12 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<Upda
       .single();
 
     if (artifactError || !artifact) {
-      return createErrorResponse('Artifact not found or you do not have permission to access it');
+      throw new DatabaseError(
+        'get_artifact_details',
+        artifactError?.message || 'Artifact not found',
+        artifactError ? new Error(artifactError.message) : undefined,
+        { artifactId: validatedArtifactId, userId: user.id }
+      );
     }
 
     // Check if project is closed (prevent deletion in closed projects)
@@ -162,8 +193,12 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<Upda
       .eq('id', validatedArtifactId);
 
     if (deleteError) {
-      console.error('Failed to delete artifact:', deleteError);
-      return createErrorResponse(`Failed to delete artifact: ${deleteError.message}`);
+      throw new DatabaseError(
+        'delete_artifact',
+        deleteError.message,
+        new Error(deleteError.message),
+        { artifactId: validatedArtifactId, artifactTitle: artifact.title }
+      );
     }
 
     // Revalidate project page to remove deleted artifact
@@ -174,8 +209,15 @@ export async function deleteArtifact(params: DeleteArtifactParams): Promise<Upda
 
     return createMessageResponse(`Artifact "${artifact.title}" deleted successfully`);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Artifact deletion error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected artifact deletion error:', error);
     return createErrorResponse(`Unexpected error deleting artifact: ${errorMessage}`);
   }
 }

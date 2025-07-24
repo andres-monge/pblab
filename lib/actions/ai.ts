@@ -4,6 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/db.types";
 import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 import { CreateResult, createIdResponse, createErrorResponse } from "@/lib/shared/action-types";
+import { 
+  isPBLabError, 
+  getUserMessage, 
+  getTechnicalDetails,
+  ValidationError,
+  AuthorizationError,
+  DatabaseError 
+} from "@/lib/shared/errors";
 
 /**
  * Parameters for logging AI usage interactions
@@ -35,11 +43,11 @@ export async function logAiUsage(params: LogAiUsageParams): Promise<CreateResult
 
   // Validate required parameters
   if (!userId || typeof userId !== 'string') {
-    return createErrorResponse('userId is required and must be a valid string');
+    throw new ValidationError('User ID', 'is required and must be a valid string', userId);
   }
 
   if (!feature || typeof feature !== 'string') {
-    return createErrorResponse('feature is required and must be a valid string (e.g., "tutor", "assessment")');
+    throw new ValidationError('Feature', 'is required and must be a valid string (e.g., "tutor", "assessment")', feature);
   }
 
   try {
@@ -50,7 +58,12 @@ export async function logAiUsage(params: LogAiUsageParams): Promise<CreateResult
 
     // Additional security check: ensure the userId matches the authenticated user
     if (user.id !== userId) {
-      return createErrorResponse('userId must match the authenticated user');
+      throw new AuthorizationError(
+        'log_ai_usage',
+        'User ID must match authenticated user',
+        user.role,
+        { providedUserId: userId, authenticatedUserId: user.id }
+      );
     }
 
     // Insert AI usage record
@@ -67,18 +80,34 @@ export async function logAiUsage(params: LogAiUsageParams): Promise<CreateResult
       .single();
 
     if (error) {
-      console.error('Failed to log AI usage:', error);
-      return createErrorResponse(`Failed to log AI usage: ${error.message}`);
+      throw new DatabaseError(
+        'log_ai_usage',
+        error.message,
+        new Error(error.message),
+        { userId, projectId, feature }
+      );
     }
 
     if (!data?.id) {
-      return createErrorResponse('Failed to create AI usage record - no ID returned');
+      throw new DatabaseError(
+        'log_ai_usage',
+        'No ID returned from AI usage record creation',
+        undefined,
+        { userId, projectId, feature, data }
+      );
     }
 
     return createIdResponse(data.id);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('AI usage logging error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected AI usage logging error:', error);
     return createErrorResponse(`Unexpected error logging AI usage: ${errorMessage}`);
   }
 } 

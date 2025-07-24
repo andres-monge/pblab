@@ -4,9 +4,11 @@
  * Common validation functions for server actions to reduce code duplication
  * and provide consistent error messages across the application.
  * 
- * These utilities follow TypeScript strict mode and provide user-friendly
- * error messages for frontend form validation.
+ * These utilities follow TypeScript strict mode and use structured error classes
+ * for better debugging and user-friendly error messages.
  */
+
+import { ValidationError } from './errors';
 
 /**
  * Validates that a value is a non-empty string
@@ -18,7 +20,7 @@
  */
 export function validateId(value: unknown, fieldName: string): string {
   if (!value || typeof value !== 'string') {
-    throw new Error(`${fieldName} is required and must be a valid string`);
+    throw new ValidationError(fieldName, 'is required and must be a valid string', value);
   }
   return value;
 }
@@ -93,13 +95,13 @@ export function validateRequiredString(
   maxLength?: number
 ): string {
   if (!value || typeof value !== 'string' || value.trim().length === 0) {
-    throw new Error(`${fieldName} is required and cannot be empty`);
+    throw new ValidationError(fieldName, 'is required and cannot be empty', value);
   }
 
   const trimmed = value.trim();
   
   if (maxLength && trimmed.length > maxLength) {
-    throw new Error(`${fieldName} cannot exceed ${maxLength} characters`);
+    throw new ValidationError(fieldName, `cannot exceed ${maxLength} characters`, value, { maxLength, actualLength: trimmed.length });
   }
 
   return trimmed;
@@ -124,13 +126,13 @@ export function validateOptionalString(
   }
 
   if (typeof value !== 'string') {
-    throw new Error(`${fieldName} must be a string`);
+    throw new ValidationError(fieldName, 'must be a string', value);
   }
 
   const trimmed = value.trim();
   
   if (maxLength && trimmed.length > maxLength) {
-    throw new Error(`${fieldName} cannot exceed ${maxLength} characters`);
+    throw new ValidationError(fieldName, `cannot exceed ${maxLength} characters`, value, { maxLength, actualLength: trimmed.length });
   }
 
   return trimmed.length === 0 ? null : trimmed;
@@ -155,11 +157,11 @@ export function validateStringLength(
   const validated = validateRequiredString(value, fieldName);
   
   if (validated.length < minLength) {
-    throw new Error(`${fieldName} must be at least ${minLength} characters long`);
+    throw new ValidationError(fieldName, `must be at least ${minLength} characters long`, value, { minLength, maxLength, actualLength: validated.length });
   }
   
   if (validated.length > maxLength) {
-    throw new Error(`${fieldName} cannot exceed ${maxLength} characters`);
+    throw new ValidationError(fieldName, `cannot exceed ${maxLength} characters`, value, { minLength, maxLength, actualLength: validated.length });
   }
   
   return validated;
@@ -186,11 +188,11 @@ export function validateArray<T>(
   }
 
   if (!Array.isArray(value)) {
-    throw new Error(`${fieldName} must be an array`);
+    throw new ValidationError(fieldName, 'must be an array', value);
   }
 
   if (maxLength && value.length > maxLength) {
-    throw new Error(`${fieldName} cannot contain more than ${maxLength} items`);
+    throw new ValidationError(fieldName, `cannot contain more than ${maxLength} items`, value, { maxLength, actualLength: value.length });
   }
 
   return value as T[];
@@ -218,7 +220,7 @@ export function validateStringArray(
   for (let i = 0; i < array.length; i++) {
     const item = array[i];
     if (!item || typeof item !== 'string') {
-      throw new Error(`All items in ${fieldName} must be valid strings`);
+      throw new ValidationError(fieldName, 'must contain only valid strings', value, { invalidItemIndex: i, invalidItem: item });
     }
   }
 
@@ -244,7 +246,7 @@ export function validateNumber(
   }
 
   if (typeof value !== 'number' || isNaN(value)) {
-    throw new Error(`${fieldName} must be a valid number`);
+    throw new ValidationError(fieldName, 'must be a valid number', value);
   }
 
   return value;
@@ -269,11 +271,11 @@ export function validateRange(
   const num = validateNumber(value, fieldName, true); // Always required for range validation
   
   if (num === null) {
-    throw new Error(`${fieldName} is required for range validation`);
+    throw new ValidationError(fieldName, 'is required for range validation', value);
   }
   
   if (num < min || num > max) {
-    throw new Error(`${fieldName} must be between ${min} and ${max}`);
+    throw new ValidationError(fieldName, `must be between ${min} and ${max}`, value, { min, max, actualValue: num });
   }
 
   return num;
@@ -302,8 +304,8 @@ export function validateUrl(
   try {
     new URL(urlString);
     return urlString;
-  } catch {
-    throw new Error(`${fieldName} must be a valid URL`);
+  } catch (urlError) {
+    throw new ValidationError(fieldName, 'must be a valid URL', value, { urlError: urlError instanceof Error ? urlError.message : String(urlError) });
   }
 }
 
@@ -324,7 +326,7 @@ export function validateEnum<T extends string>(
   const stringValue = validateRequiredString(value, fieldName);
   
   if (!allowedValues.includes(stringValue as T)) {
-    throw new Error(`${fieldName} must be one of: ${allowedValues.join(', ')}`);
+    throw new ValidationError(fieldName, `must be one of: ${allowedValues.join(', ')}`, value, { allowedValues, providedValue: stringValue });
   }
 
   return stringValue as T;
@@ -347,7 +349,7 @@ export function validateToken(value: unknown, fieldName: string): string {
   
   // Basic token format validation - intentionally simple for MVP
   if (token.length < 10) {
-    throw new Error(`${fieldName} appears to be invalid`);
+    throw new ValidationError(fieldName, 'appears to be invalid', value, { minLength: 10, actualLength: token.length });
   }
 
   return token;

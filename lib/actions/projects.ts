@@ -29,6 +29,13 @@ import {
   createMessageResponse,
   createErrorResponse
 } from "@/lib/shared/action-types";
+import { 
+  isPBLabError, 
+  getUserMessage, 
+  getTechnicalDetails,
+  DatabaseError,
+  BusinessLogicError
+} from "@/lib/shared/errors";
 
 type Project = Database["public"]["Tables"]["projects"]["Insert"];
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -116,7 +123,12 @@ export async function createProject(params: CreateProjectParams): Promise<Create
       .single();
 
     if (problemError || !problem) {
-      return createErrorResponse('Problem not found or you do not have permission to use it');
+      throw new DatabaseError(
+        'verify_problem_access',
+        problemError?.message || 'Problem not found',
+        problemError ? new Error(problemError.message) : undefined,
+        { problemId: validatedProblemId, userId: user.id }
+      );
     }
 
     // Verify the team exists and is in the same course as the problem
@@ -127,12 +139,21 @@ export async function createProject(params: CreateProjectParams): Promise<Create
       .single();
 
     if (teamError || !team) {
-      return createErrorResponse('Team not found or you do not have permission to manage it');
+      throw new DatabaseError(
+        'verify_team_access',
+        teamError?.message || 'Team not found',
+        teamError ? new Error(teamError.message) : undefined,
+        { teamId: validatedTeamId, userId: user.id }
+      );
     }
 
     // Ensure team and problem are in the same course
     if (team.course_id !== problem.course_id) {
-      return createErrorResponse('Team and problem must be in the same course');
+      throw new BusinessLogicError(
+        'course_mismatch',
+        'Team and problem must be in the same course',
+        { teamCourseId: team.course_id, problemCourseId: problem.course_id, teamId: validatedTeamId, problemId: validatedProblemId }
+      );
     }
 
     // Check if a project already exists for this team and problem
@@ -145,11 +166,20 @@ export async function createProject(params: CreateProjectParams): Promise<Create
 
     if (existingError && existingError.code !== 'PGRST116') {
       // PGRST116 is "not found" which is expected if no project exists
-      return createErrorResponse(`Failed to check for existing project: ${existingError.message}`);
+      throw new DatabaseError(
+        'check_existing_project',
+        existingError.message,
+        new Error(existingError.message),
+        { problemId: validatedProblemId, teamId: validatedTeamId }
+      );
     }
 
     if (existingProject) {
-      return createErrorResponse('A project already exists for this team and problem combination');
+      throw new BusinessLogicError(
+        'project_already_exists',
+        'A project already exists for this team and problem combination',
+        { existingProjectId: existingProject.id, problemId: validatedProblemId, teamId: validatedTeamId }
+      );
     }
 
     // Create the project
@@ -166,8 +196,12 @@ export async function createProject(params: CreateProjectParams): Promise<Create
       .single();
 
     if (projectCreateError || !createdProject) {
-      console.error('Failed to create project:', projectCreateError);
-      return createErrorResponse(`Failed to create project: ${projectCreateError?.message || 'Unknown error'}`);
+      throw new DatabaseError(
+        'create_project',
+        projectCreateError?.message || 'Failed to create project',
+        projectCreateError ? new Error(projectCreateError.message) : undefined,
+        { projectData }
+      );
     }
 
     // Revalidate relevant paths to show new project
@@ -177,8 +211,15 @@ export async function createProject(params: CreateProjectParams): Promise<Create
 
     return createIdResponse(createdProject.id);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Project creation error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected project creation error:', error);
     return createErrorResponse(`Unexpected error creating project: ${errorMessage}`);
   }
 }
@@ -220,12 +261,20 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
 
     // Allow backward transitions for educators/admins, but students can only advance
     if (!hasEducatorPermissions(user.role) && newIndex <= currentIndex) {
-      return createErrorResponse('Students can only advance to the next phase in the workflow');
+      throw new BusinessLogicError(
+        'invalid_phase_transition',
+        'Students can only advance to the next phase in the workflow',
+        { currentPhase, requestedPhase: validatedPhase, userRole: user.role, currentIndex, newIndex }
+      );
     }
 
     // Prevent invalid transitions (e.g., skipping phases)
     if (!hasEducatorPermissions(user.role) && newIndex > currentIndex + 1) {
-      return createErrorResponse('Cannot skip phases. Please advance one phase at a time.');
+      throw new BusinessLogicError(
+        'phase_skipping_not_allowed',
+        'Cannot skip phases. Please advance one phase at a time.',
+        { currentPhase, requestedPhase: validatedPhase, userRole: user.role, currentIndex, newIndex }
+      );
     }
 
     // Update the project phase
@@ -238,8 +287,12 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
       .eq('id', validatedProjectId);
 
     if (updateError) {
-      console.error('Failed to update project phase:', updateError);
-      return createErrorResponse(`Failed to update project phase: ${updateError.message}`);
+      throw new DatabaseError(
+        'update_project_phase',
+        updateError.message,
+        new Error(updateError.message),
+        { projectId: validatedProjectId, newPhase: validatedPhase, currentPhase }
+      );
     }
 
     // Revalidate relevant paths to reflect phase change
@@ -250,8 +303,15 @@ export async function updateProjectPhase(params: UpdateProjectPhaseParams): Prom
 
     return createMessageResponse(`Project phase updated to: ${validatedPhase}`);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Project phase update error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected project phase update error:', error);
     return createErrorResponse(`Unexpected error updating project phase: ${errorMessage}`);
   }
 }
@@ -296,8 +356,12 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
       .eq('id', validatedProjectId);
 
     if (updateError) {
-      console.error('Failed to update project report URL:', updateError);
-      return createErrorResponse(`Failed to update project report URL: ${updateError.message}`);
+      throw new DatabaseError(
+        'update_project_report_url',
+        updateError.message,
+        new Error(updateError.message),
+        { projectId: validatedProjectId, reportUrl: validatedReportUrl, updateData }
+      );
     }
 
     // Revalidate relevant paths
@@ -309,8 +373,15 @@ export async function updateProjectReportUrl(params: UpdateProjectReportParams):
     const phaseMessage = project.phase === 'research' ? ' and advanced to post-discussion phase' : '';
     return createMessageResponse(`Final report URL updated successfully${phaseMessage}`);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Project report URL update error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected project report URL update error:', error);
     return createErrorResponse(`Unexpected error updating project report URL: ${errorMessage}`);
   }
 }
@@ -357,8 +428,12 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
       .eq('id', validatedProjectId);
 
     if (updateError) {
-      console.error('Failed to update project report content:', updateError);
-      return createErrorResponse(`Failed to update project report content: ${updateError.message}`);
+      throw new DatabaseError(
+        'update_project_report_content',
+        updateError.message,
+        new Error(updateError.message),
+        { projectId: validatedProjectId, reportUrl: validatedReportUrl, contentLength: validatedReportContent.length }
+      );
     }
 
     // Revalidate relevant paths
@@ -370,8 +445,15 @@ export async function updateProjectReportContent(params: UpdateProjectReportCont
     const phaseMessage = project.phase === 'research' ? ' and advanced to post-discussion phase' : '';
     return createMessageResponse(`Final report submitted successfully${phaseMessage}. Content cached for assessment.`);
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Project report content update error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected project report content update error:', error);
     return createErrorResponse(`Unexpected error updating project report content: ${errorMessage}`);
   }
 }
@@ -413,8 +495,12 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
       .eq('id', validatedProjectId);
 
     if (updateError) {
-      console.error('Failed to update project learning goals:', updateError);
-      return createErrorResponse(`Failed to update project learning goals: ${updateError.message}`);
+      throw new DatabaseError(
+        'update_project_learning_goals',
+        updateError.message,
+        new Error(updateError.message),
+        { projectId: validatedProjectId, goalsLength: validatedGoals?.length || 0 }
+      );
     }
 
     // Revalidate relevant paths to reflect learning goals change
@@ -425,8 +511,15 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
 
     return createMessageResponse(validatedGoals ? 'Learning goals updated successfully' : 'Learning goals cleared successfully');
   } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Project learning goals update error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected project learning goals update error:', error);
     return createErrorResponse(`Unexpected error updating project learning goals: ${errorMessage}`);
   }
 } 

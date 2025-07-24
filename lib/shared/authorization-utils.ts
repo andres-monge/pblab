@@ -1,4 +1,5 @@
 import type { Database } from "@/lib/db.types";
+import { AuthorizationError, BusinessLogicError } from './errors';
 
 type UserRole = Database["public"]["Enums"]["user_role"];
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -39,7 +40,11 @@ export function hasAdminPermissions(userRole: UserRole): boolean {
  */
 export function validateProjectNotClosed(projectPhase: ProjectPhase, operationName: string): void {
   if (projectPhase === 'closed') {
-    throw new Error(`Cannot ${operationName} for a closed project`);
+    throw new BusinessLogicError(
+      'project_closed_restriction',
+      `Cannot ${operationName} for a closed project`,
+      { projectPhase, operationName }
+    );
   }
 }
 
@@ -51,7 +56,11 @@ export function validateProjectNotClosed(projectPhase: ProjectPhase, operationNa
  */
 export function requireProjectCreationPermissions(userRole: UserRole): void {
   if (!hasEducatorPermissions(userRole)) {
-    throw new Error('Only educators and administrators can create projects');
+    throw new AuthorizationError(
+      'create_project',
+      'User does not have educator-level permissions',
+      userRole
+    );
   }
 }
 
@@ -63,6 +72,10 @@ export function requireProjectCreationPermissions(userRole: UserRole): void {
  */
 export function requireProjectClosePermissions(userRole: UserRole): void {
   if (!hasEducatorPermissions(userRole)) {
-    throw new Error('Only educators and administrators can close projects');
+    throw new AuthorizationError(
+      'close_project',
+      'User does not have educator-level permissions',
+      userRole
+    );
   }
 }
