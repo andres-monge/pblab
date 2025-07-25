@@ -14,7 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { verifyInviteToken, joinTeam } from "@/lib/actions/teams";
 
 interface AuthFormProps {
@@ -22,7 +22,7 @@ interface AuthFormProps {
   className?: string;
 }
 
-export function AuthForm({
+function AuthFormContent({
   mode,
   className,
   ...props
@@ -221,5 +221,13 @@ export function AuthForm({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export function AuthForm(props: AuthFormProps & React.ComponentPropsWithoutRef<"div">) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <AuthFormContent {...props} />
+    </Suspense>
   );
 } 
