@@ -16,11 +16,13 @@
 
 **Key Database Tables**: `users`, `courses`, `teams`, `problems`, `projects`, `artifacts`, `comments`, `ai_usage`, `assessments` (with proper RLS policies).
 
-**Authentication**: Magic link system with `signInWithOtp()`, database trigger `handle_new_user()` auto-copies auth users to `public.users`, cleaned up password-related code.
+**Authentication**: Magic link system with `signInWithOtp()` and explicit `shouldCreateUser` parameter (true for signup, false for login), database trigger `handle_new_user()` auto-copies auth users to `public.users`, cleaned up password-related code.
 
-**Optimizations**: Unified auth forms, removed starter template remnants, standardized environment variables, optimized seeding script with parallel operations and early-exit (~60-70% faster).
+**Critical Auth Fix**: Resolved migration order issue by renaming files to timestamps ensuring `user_role` enum creates before trigger, recreated trigger function with explicit schema references (`public.user_role`), eliminated "user_role does not exist" database errors.
 
-**Critical Files**: `supabase/migrations/*` (schema), `lib/db.types.ts` (types), `scripts/seed.ts` (sample data), `components/pblab/auth/auth-form.tsx` (unified auth).
+**Optimizations**: Unified auth forms with comprehensive debug logging, removed starter template remnants, standardized environment variables, optimized seeding script with parallel operations and early-exit (~60-70% faster).
+
+**Critical Files**: `supabase/migrations/*` (schema with correct order), `lib/db.types.ts` (types), `scripts/seed.ts` (sample data), `components/pblab/auth/auth-form.tsx` (unified auth with shouldCreateUser fix).
 
 -----
 

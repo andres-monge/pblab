@@ -45,14 +45,24 @@ export function AuthForm({
         email,
         options: {
           emailRedirectTo: `${window.location.origin}/dashboard`,
+          shouldCreateUser: isSignup, // Always specify: true for signup, false for login
           ...(isSignup && {
-            shouldCreateUser: true,
             data: {
               name: fullName,
             },
           }),
         },
       };
+
+      // Debug logging to verify parameters
+      console.log('[Auth Debug]', {
+        mode,
+        isSignup,
+        shouldCreateUser: isSignup,
+        email,
+        redirectTo: `${window.location.origin}/dashboard`,
+        authOptions
+      });
 
       const { error } = await supabase.auth.signInWithOtp(authOptions);
       if (error) throw error;
