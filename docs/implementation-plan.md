@@ -109,50 +109,68 @@ This phase focuses on building the UI for all features, including the new enhanc
   - Future-Ready Structure - Marked upcoming features as "Soon" with disabled
   state
 
-[ ] Step 20: Implement Role-Based Dashboard and Redirects
+[ ] Step 20: **Update Seeding for Password Auth**
+**Task**: Modify the `scripts/seed.ts` file to enable password-based authentication for testing. Add a `password` field to each user object in the `usersToCreate` array using a single, consistent password for all users to simplify testing. Add an `admin@pblab.dev` user to the array to ensure the admin role is testable. Update the Supabase Admin API calls to include password creation.
+**Suggested Files for Context**: `scripts/seed.ts`, `lib/db.types.ts`, `supabase/config.toml`
+**Step Dependencies**: Phase 2 completed (database schema and auth setup)
+**User Instructions**: The password should be simple for testing, e.g., `password123`. After modifying, run `npx supabase db reset` and `npm run db:seed` to apply the changes.
+
+[ ] Step 21: **Implement Password-Based Login Form**
+**Task**: Update the main authentication form component `components/pblab/auth/auth-form.tsx`. Change the login handler to use Supabase's `signInWithPassword()` method instead of `signInWithOtp()`. Ensure the form UI includes an `<input type="password">` field and remove the magic link messaging. This will be the primary login method for testing and competition submission.
+**Suggested Files for Context**: `components/pblab/auth/auth-form.tsx`, `lib/supabase/client.ts`, `app/(auth)/login/page.tsx`
+**Step Dependencies**: Step 20 (seeded passwords must exist)
+**User Instructions**: Test with the seeded account credentials to ensure password login works correctly.
+
+[ ] Step 22: Implement Role-Based Dashboard and Redirects
 **Task**: Create the student dashboard at `app/(main)/student/dashboard/page.tsx` and the educator dashboard at `app/(main)/educator/dashboard/page.tsx`. Implement the role-based redirect at `app/(main)/dashboard/page.tsx` that navigates users to the correct dashboard based on their role from Supabase Auth.
 **Suggested Files for Context**: `lib/db.types.ts`, `app/(main)/layout.tsx`, `lib/supabase/server.ts`
-**Step Dependencies**: Step 19
+**Step Dependencies**: Step 19, Step 21 (password auth working)
 **User Instructions**: None
 
-[ ] Step 21: Implement Notifications UI
+[ ] Step 23: Implement Notifications UI
 **Task**: 1. Create the `<NotificationsIndicator />` component in `components/pblab/notifications/`. It should use the `getNotifications` server action to fetch data and display a badge with the unread count. 2. Clicking the indicator should open a dropdown panel listing notifications with links. 3. Integrate `<NotificationsIndicator />` into the `<Header />` component. 4. Clicking a notification should navigate to its `reference_url` and call the `markNotificationAsRead` action.
 **Suggested Files for Context**: `components/pblab/header.tsx`, `lib/actions/notifications.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 16, Step 19
 **User Instructions**: None
 
-[ ] Step 22: IMPORTANT: Implement Project Workspace with Learning Goal Editor
+[ ] Step 24: IMPORTANT: Implement Project Workspace with Learning Goal Editor
 **Task**: Create the main project workspace page at `app/p/[projectId]/page.tsx`. Implement the `<LearningGoalEditor />` component (`components/pblab/project/learning-goal-editor.tsx`) and display it when the project is in the 'pre' phase. Wire its "Save" button to the `updateProjectLearningGoals` action and its "AI Suggestions" button to the `/api/ai/suggest-goals` API route.
 **Suggested Files for Context**: `lib/actions/projects.ts`, `app/api/ai/suggest-goals/route.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 15, Step 17
 **User Instructions**: None
 
-[ ] Step 23: IMPORTANT: Update AI Tutor Chat UI for Shared History
+[ ] Step 25: IMPORTANT: Update AI Tutor Chat UI for Shared History
 **Task**: Update the `<AiTutorChat />` component (`components/pblab/ai/ai-tutor-chat.tsx`). It should now fetch the full, shared conversation history for the project on load and render it. Ensure the UI makes it clear that the chat is a shared resource for the team. The form submission will continue to use the updated `/api/ai/tutor` endpoint.
 **Suggested Files for Context**: `components/pblab/ai/ai-tutor-chat.tsx`, `app/api/ai/tutor/route.ts`
 **Step Dependencies**: Step 18
 **User Instructions**: None
 
-[ ] Step 24: Implement Remaining Project Workspace Components
+[ ] Step 26: Implement Remaining Project Workspace Components
 **Task**: On the project page (`app/p/[projectId]/page.tsx`), implement the remaining components for the core workflow: `<ArtifactUploader />`, `<ArtifactCard />`, and `<CommentThread />`. Wire up the comment form to the `createComment` server action, which now handles user-selection based @mentions. Include a mention selector component that allows users to select from available team members and educators for the project.
 **Suggested Files for Context**: `lib/actions/artifacts/crud.ts`, `lib/actions/artifacts/comments.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`, `lib/security/file-validation.ts`
-**Step Dependencies**: Step 16, Step 22, Phase 4 Optimization completed
+**Step Dependencies**: Step 16, Step 24, Phase 4 Optimization completed
 **User Instructions**: Configure a "artifacts" bucket in Supabase Storage with appropriate RLS policies.
 
 -----
 
 ## Phase 6: Finalization and Testing
 
-This section includes steps for creating tests to ensure application quality and correctness.
+This section includes steps for creating tests and final documentation to ensure application quality and correctness for competition submission.
 
-[ ] Step 25: Setup and Write Unit Tests
-**Task**: Configure Jest for unit testing. Create tests for key new server actions. For example, test the user-selection mention logic in `createComment`, validate `getProjectMentionableUsers` returns correct users, and ensure `getNotifications` correctly respects RLS (by mocking the user).
+[ ] Step 27: Setup and Write Unit Tests
+**Task**: Configure Jest for unit testing. Create tests for key server actions. For example, test the user-selection mention logic in `createComment`, validate `getProjectMentionableUsers` returns correct users, and ensure `getNotifications` correctly respects RLS (by mocking the user).
 **Suggested Files for Context**: `lib/actions/artifacts/comments.ts`, `lib/actions/shared/validation.ts`, `lib/actions/notifications.ts`, `lib/security/file-validation.ts`, `docs/tech-spec.md`
-**Step Dependencies**: All backend feature steps, Phase 4 Optimization completed.
+**Step Dependencies**: All backend feature steps, Phase 4 Optimization completed
 **User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and then run `npm test`.
 
-[ ] Step 26: IMPORTANT: Setup and Write E2E Tests
-**Task**: Configure Playwright for end-to-end testing. Implement tests for the new feature flows: 1. A user posts a comment with user-selection @mentions, and the mentioned user receives a notification. 2. A user interacts with the Learning Goal Editor and successfully gets AI suggestions. 3. The AI Tutor chat loads and displays a shared history.
-**Suggested Files for Context**: All relevant page and component files for these flows.
-**Step Dependencies**: All feature steps.
-**User Instructions**: Run `npm init playwright@latest`. Consider using the Supabase Admin API to generate direct login tokens for test users to bypass email magic links.
+[ ] Step 28: IMPORTANT: Setup and Write E2E Tests
+**Task**: Configure Playwright for end-to-end testing. Update test setups to log in users via the new password method. Implement tests for the key feature flows: 1. A user posts a comment with user-selection @mentions, and the mentioned user receives a notification. 2. A user interacts with the Learning Goal Editor and successfully gets AI suggestions. 3. The AI Tutor chat loads and displays a shared history.
+**Suggested Files for Context**: All relevant page and component files for these flows, `components/pblab/auth/auth-form.tsx`
+**Step Dependencies**: All feature steps, Step 21 (password authentication working)
+**User Instructions**: Run `npm init playwright@latest`. Test logins will now use the defined email/password combinations from the seed script.
+
+[ ] Step 29: **Create Final README.md Documentation**
+**Task**: Create the final `README.md` for competition submission. It must include the live application URL, GitHub repo link, and embedded demo video. Crucially, add the "Test Accounts" table with all credentials (admin@pblab.dev, educator1@university.edu, student1@university.edu, student3@university.edu, all with password123) and a detailed "Testing the Student Invite Feature" guide for judges to verify the invite link functionality works correctly.
+**Suggested Files for Context**: `docs/comp-criteria.md`, `docs/prd.md`, `scripts/seed.ts`
+**Step Dependencies**: All steps completed, live deployment ready
+**User Instructions**: This is a key deliverable for the competition. Include screenshots and clear instructions for judges to test all MVP features.

@@ -862,57 +862,62 @@ function getExportFormat(mimeType: string): string {
 
 ## 9. Authentication & Authorization
 
-- **Implementation:** Supabase Auth with email-based sign-up and login. The starter template's auth forms and flows will be used as a base. A `role` field will be added to the public `users` table.
-    
-- **Protected Routes:** The `middleware.ts` file already protects all routes except `/`, `/auth/*`, and static assets. This will be maintained. We will add a redirect in the main dashboard (`/dashboard/page.tsx`) to route users to `/student/dashboard` or `/educator/dashboard` based on their role.
-    
-- **Authorization (RLS Policies):**
+- **Implementation Strategy:** For this competition MVP, the primary authentication method for accessing the pre-populated demonstration environment is **Email & Password**. This choice directly facilitates testing for developers and evaluation for judges by bypassing the need for real email inboxes associated with the fictional, seeded users.
+
+- **Seeded Test Accounts:** The database seeding script (`scripts/seed.ts`) creates a comprehensive set of test users (student, educator, admin), each with a pre-defined password. These credentials will be documented in the project's `README.md` file for easy access.
+
+- **Invite Link & New User Signup:** The underlying Supabase Auth capability for new user signups (e.g., via magic link or with password creation) remains functional to support the "Student Join via Invite Link" user story. Judges will be guided through this specific flow via instructions in the `README.md`.
+
+- **Protected Routes:** The `middleware.ts` file protects all authenticated routes. A redirect in the main dashboard (`/dashboard/page.tsx`) routes users to their role-specific view (`/student/dashboard` or `/educator/dashboard`).
+
+- **Authorization (RLS Policies):** Row Level Security (RLS) policies remain the core mechanism for authorization, ensuring users can only access data relevant to their role and team membership.
+ 
     
     SQL
     
     ```
     -- Enable RLS for all relevant tables
-    ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE artifacts ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE problems ENABLE ROW LEVEL SECURITY;
-    ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
-    
-    -- Helper function to get user role
-    CREATE OR REPLACE FUNCTION get_my_role()
-    RETURNS TEXT AS $$
-    BEGIN
-      RETURN (SELECT role::text FROM public.users WHERE id = auth.uid());
-    END;
-    $$ LANGUAGE plpgsql SECURITY DEFINER;
-    
-    -- Policy: Users can see projects they are a member of.
-    CREATE POLICY "Allow team members to view their projects"
-    ON projects FOR SELECT
-    USING (team_id IN (SELECT team_id FROM teams_users WHERE user_id = auth.uid()));
-    
-    -- Policy: Educators can see all projects in their courses.
-    CREATE POLICY "Allow educators to view course projects"
-    ON projects FOR SELECT
-    USING (
-      get_my_role() = 'educator' AND
-      problem_id IN (SELECT id FROM problems WHERE course_id IN (SELECT course_id FROM teams WHERE id = projects.team_id))
-    );
-    
-    -- Policy: Users can only insert/update artifacts for their own projects.
-    CREATE POLICY "Allow team members to manage artifacts"
-    ON artifacts FOR ALL
-    USING (project_id IN (SELECT id FROM projects)); -- The SELECT policy on projects will cascade down.
-    
-    -- Policy: Users can only see their own notifications.
-    CREATE POLICY "Allow users to see their own notifications"
-    ON notifications FOR SELECT
-    USING (recipient_id = auth.uid());
-    
-    -- Policy: Users can only mark their own notifications as read.
-    CREATE POLICY "Allow users to update their own notifications"
-    ON notifications FOR UPDATE
-    USING (recipient_id = auth.uid()) WITH CHECK (recipient_id = auth.uid());
+  ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE artifacts ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE problems ENABLE ROW LEVEL SECURITY;
+  ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+  
+  -- Helper function to get user role
+  CREATE OR REPLACE FUNCTION get_my_role()
+  RETURNS TEXT AS $$
+  BEGIN
+    RETURN (SELECT role::text FROM public.users WHERE id = auth.uid());
+  END;
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+  
+  -- Policy: Users can see projects they are a member of.
+  CREATE POLICY "Allow team members to view their projects"
+  ON projects FOR SELECT
+  USING (team_id IN (SELECT team_id FROM teams_users WHERE user_id = auth.uid()));
+  
+  -- Policy: Educators can see all projects in their courses.
+  CREATE POLICY "Allow educators to view course projects"
+  ON projects FOR SELECT
+  USING (
+    get_my_role() = 'educator' AND
+    problem_id IN (SELECT id FROM problems WHERE course_id IN (SELECT course_id FROM teams WHERE id = projects.team_id))
+  );
+  
+  -- Policy: Users can only insert/update artifacts for their own projects.
+  CREATE POLICY "Allow team members to manage artifacts"
+  ON artifacts FOR ALL
+  USING (project_id IN (SELECT id FROM projects)); -- The SELECT policy on projects will cascade down.
+  
+  -- Policy: Users can only see their own notifications.
+  CREATE POLICY "Allow users to see their own notifications"
+  ON notifications FOR SELECT
+  USING (recipient_id = auth.uid());
+  
+  -- Policy: Users can only mark their own notifications as read.
+  CREATE POLICY "Allow users to update their own notifications"
+  ON notifications FOR UPDATE
+  USING (recipient_id = auth.uid()) WITH CHECK (recipient_id = auth.uid());
     ```
     
 
@@ -933,6 +938,13 @@ function getExportFormat(mimeType: string): string {
 
 ---
 ## 11. Testing
+
+### Manual Testing & Judge Walkthrough
+
+A primary goal of the testing strategy is to provide a frictionless evaluation experience for competition judges. This is achieved through:
+
+- **Password-Based Test Accounts:** A full suite of pre-seeded accounts (admin, educator, students for each team) is provided with a single, shared password.
+- **`README.md` as a Guide:** The root `README.md` file serves as the central guide for judges. It contains the credentials for all test accounts and a specific, step-by-step walkthrough for testing the student invite-link feature. This ensures all MVP requirements can be manually verified on the live, deployed application.
 
 - **Unit Tests (Jest):**
     
