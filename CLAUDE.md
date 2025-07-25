@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Architecture
 
-**PBLab** is an AI-augmented Problem-Based Learning platform built with Next.js 15, Supabase, and TypeScript. The application follows a clear separation between educational workflows and technical implementation.
+**PBLab** is an MVP for an AI-augmented Problem-Based Learning platform built with Next.js 15, Supabase, and TypeScript. The application follows a clear separation between educational workflows and technical implementation.
 
 ### Core Structure
 

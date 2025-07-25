@@ -41,293 +41,71 @@
 
 -----
 
-## Phase 4: Backend Enhancements
+## Phase 4: AI Features & Mention System ✅ COMPLETED
 
-**Summary**: Added Learning Goals and Notifications features via database migrations, RLS policies, and server actions. Extended schema with `learning_goals` column on projects table and complete `notifications` table.
+**Summary**: Implemented AI-powered learning goal suggestions, contextual AI tutor with conversation memory, and comprehensive user-selection @mention system for collaborative commenting.
 
-**Database Changes**: 
-- Added `learning_goals TEXT` to `projects` table for student-defined learning objectives
-- Created `notifications` table with `notification_type` ENUM for @mention system
-- Applied RLS policies for notification privacy and security
+**Key AI Features**:
+- **Step 16**: Enhanced `createComment` action with user-selection @mentions, notification creation, and `getProjectMentionableUsers()` helper
+- **Step 17**: Created `/api/ai/suggest-goals` route with Gemini API integration, authentication, and usage logging
+- **Step 18**: Built `/api/ai/tutor` route with conversation history retrieval and contextual memory
 
-**New Server Actions**:
-- `lib/actions/projects.ts`: Added `updateProjectLearningGoals()` with role-based access control
-- `lib/actions/notifications.ts`: Complete notification system with `getNotifications()`, `markNotificationAsRead()`, and `createNotification()` helpers
+**Mention System**: User-selection based workflow with `mentionedUserIds[]` parameter, team member + educator validation, self-mention prevention, atomic operations, and graceful error handling.
 
-**Key Features**: Role-based authorization, team membership verification, self-notification prevention, optimized queries with joins, comprehensive error handling.
+**AI Integration**: Configured GoogleGenAI with temperature controls, JSON response formatting, comprehensive error handling for rate limits, and audit logging via `logAiUsage()`.
 
-**Critical Files**: Migration files `*_feature_enhancements.sql` and `*_notifications_rls.sql`, updated `lib/db.types.ts`, `lib/actions/notifications.ts`.
-
-[x] Step 16: IMPORTANT: Enhance `createComment` Action for User Selection @Mentions ✅ COMPLETED
-**Task**: Modify the `createComment` server action in `lib/actions/artifacts.ts` to support a user-selection based mention system. Update the `CreateCommentParams` interface to include `mentionedUserIds?: string[]`. Create a helper function `getProjectMentionableUsers(projectId)` that returns team members and course educators available for mention. After a comment is successfully inserted, validate the mentioned user IDs and create notification records for each valid mention using the existing `createNotification` helper function.
-**Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`, `lib/db.types.ts`
-**Step Dependencies**: Step 15
-**User Instructions**: None
-**Implementation Notes**: Successfully implemented comprehensive user-selection based @mention system for comments:
-
-**Interface Updates:**
-- Enhanced `CreateCommentParams` interface in `lib/actions/artifacts.ts` to include optional `mentionedUserIds?: string[]` parameter
-- Added proper TypeScript validation for the new parameter ensuring it's an array of valid string user IDs
-
-**Helper Function Implementation:**
-- Created `getProjectMentionableUsers(projectId: string)` function that returns users available for mentions in a specific project
-- Function returns both team members (students in the project's team) and course educators (educators who administer the course)
-- Implemented proper database queries with authentication checks and RLS policy integration
-- Added deduplication logic to handle users who might appear in both categories
-- Comprehensive error handling with user-friendly messages
-
-**Enhanced Comment Creation:**
-- Modified `createComment` function to extract and validate `mentionedUserIds` parameter
-- Added mention processing after successful comment creation to maintain atomic operations
-- Implemented validation logic that filters mentioned users to only include valid/mentionable users for the project
-- Added self-mention prevention (users cannot mention themselves)
-- Integrated with existing `createNotification` helper to create `'mention_in_comment'` notifications
-- Used graceful error handling where mention failures don't prevent comment creation
-
-**Security Features:**
-- Validates mentioned user IDs exist and have permission to be mentioned in the project context
-- Deduplicates user IDs to prevent notification spam
-- Follows existing authentication and authorization patterns
-- RLS policies ensure proper data access control
-
-**Technical Implementation:**
-- Non-breaking changes: new parameter is optional, existing functionality unchanged
-- Atomic operations: comment creation happens first, mentions processed after
-- Graceful degradation: mention failures logged but don't break comment creation
-- Proper database queries with efficient user fetching and validation
-- Integration with existing notification infrastructure from Step 15
-
-**Verification:**
-- Successfully passed TypeScript compilation with `npm run build` (0 errors)
-- Passed ESLint validation with `npm run lint` (0 warnings)
-- All functions follow established codebase patterns and conventions
-- Ready for frontend integration in upcoming steps
-
-The mention system now supports user-selection based workflow where frontend components can provide arrays of user IDs to mention, and the backend will validate permissions, create notifications, and ensure secure operation.
-
-[x] Step 17: IMPORTANT: Create API Route for AI-Powered Goal Suggestions ✅ COMPLETED
-**Task**: Create the API route at `app/api/ai/suggest-goals/route.ts`. This `POST` route should accept a `projectId`, fetch the associated problem's title and description for context, call the Gemini API to generate suggestions, log the interaction using `logAiUsage`, and return the suggestions.
-**Suggested Files for Context**: `.docs/tech-spec.md`, `lib/actions/ai.ts`, `lib/db.types.ts`
-**Step Dependencies**: Step 12
-**User Instructions**: Ensure your `GEMINI_API_KEY` is set in `.env.local`.
-**Implementation Notes**: Successfully created comprehensive AI-powered learning goal suggestions API:
-- Installed `@google/genai@^1.0.0` package for Gemini API integration
-- Created `app/api/ai/suggest-goals/route.ts` with POST handler following Next.js App Router patterns
-- Implemented robust authentication using Supabase server client with RLS policy integration
-- Added project access validation ensuring users can only access their authorized projects
-- Integrated with existing `logAiUsage` helper for comprehensive audit trails and analytics
-- Used configurable model selection via `GEMINI_MODEL` environment variable (defaults to gemini-2.5-flash)
-- **FIXED**: Properly configured GoogleGenAI constructor with API key authentication
-- **ENHANCED**: Added comprehensive generation configuration for reliable AI responses:
-  * `temperature: 0.7` for balanced creativity and consistency in educational content
-  * `maxOutputTokens: 1000` to control response length and costs
-  * `responseMimeType: 'application/json'` to encourage proper JSON formatting
-  * `stopSequences: [']']` to prevent generation beyond JSON array completion
-- Implemented intelligent response parsing with JSON extraction and fallback text processing
-- Added comprehensive error handling for rate limits, API failures, and invalid requests
-- Follows existing codebase patterns and TypeScript strict mode compliance
-- Successfully passed ESLint validation and TypeScript compilation
-- API accepts `{ projectId: string }` and returns `{ success: true, suggestions: string[] }`
-- Constructs educational prompts using problem title/description for context-aware learning goals
-- Ready for frontend integration in upcoming Learning Goal Editor component
-
-[x] Step 18: IMPORTANT: Update AI Tutor API for Contextual Memory ✅ COMPLETED
-**Task**: Modify the `app/api/ai/tutor/route.ts` file. Update the `POST` handler to query the `ai_usage` table for all previous 'tutor' interactions associated with the `projectId`. Format this history and prepend it to the new prompt before sending it to the Gemini API.
-**Suggested Files for Context**: `app/api/ai/tutor/route.ts` (or create if not existing), `lib/actions/ai.ts`, `lib/db.types.ts`
-**Step Dependencies**: Step 12
-**User Instructions**: None
-**Implementation Notes**: Successfully created AI tutor API with contextual memory:
-- Created `app/api/ai/tutor/route.ts` with POST handler accepting `{projectId, message}`
-- Implemented conversation history retrieval from `ai_usage` table for project-specific tutor interactions
-- Built proper message formatting for Gemini API with user/model role alternation
-- Integrated contextual memory by prepending conversation history to new prompts
-- Added comprehensive system instruction for educational AI tutoring behavior
-- Included authentication, authorization, and RLS policy integration
-- Enhanced error handling for rate limits, API failures, and configuration issues
-- Integrated with existing `logAiUsage` helper for audit trails and analytics
-- Successfully passed TypeScript compilation and ESLint validation
-- API endpoint tested and responding correctly with authentication requirements
-- Ready for frontend integration in Step 23
+**Critical Files**: `lib/actions/artifacts.ts` (mentions), `app/api/ai/suggest-goals/route.ts`, `app/api/ai/tutor/route.ts`, `@google/genai` package integration.
 
 -----
 
-## Phase 4 Optimization: Code Quality & Structure Enhancement
+## Phase 4 Optimization: Code Quality & Structure Enhancement ✅ COMPLETED
 
-**Summary**: Refactor Phase 4 backend code to improve maintainability, code organization, and prepare for Phase 5 frontend development. Focus on extracting reusable patterns, improving file structure, and enhancing error handling.
+**Summary**: Comprehensive backend refactoring to improve maintainability, code organization, and prepare for Phase 5 frontend development. Focused on extracting reusable patterns, standardizing error handling, and establishing robust validation utilities.
 
-**Key Goals**: Split large files, create shared utilities, standardize error handling, and establish patterns for frontend integration.
+**Key Achievements**:
+- **Step 18.1**: Extracted file security module (`lib/security/file-validation.ts`) from 710-line artifacts file
+- **Step 18.2**: Split large artifacts file into focused modules (CRUD operations, comments, permissions)  
+- **Step 18.3**: Created shared authorization helpers, reducing 200+ lines of duplicated permission checking code
+- **Step 18.4**: Built comprehensive validation utilities with 15 specialized functions, eliminated 200+ lines of duplicated validation code
+- **Step 18.5**: Standardized all 23 server actions with discriminated union response types for type-safe error handling
+- **Step 18.6**: Implemented structured error class hierarchy with dual messaging (technical + user-friendly)
 
-### Code Organization & Structure Optimization
+**Code Quality Improvements**: Single responsibility principle compliance, TypeScript strict mode throughout, consistent error patterns, frontend-ready validation utilities, maintainable file structure.
 
-[x] Step 18.1: Extract File Security Module
-**Task**: Create a dedicated security module to handle file validation logic. Currently, 75 lines of file type definitions are mixed with business logic in `artifacts.ts` (710 lines total). This will prepare for frontend file upload components in Phase 5.
-**Suggested Files for Context**: `lib/actions/artifacts.ts`, existing patterns in `lib/` directory
-**Step Dependencies**: None
-**User Instructions**: None
-
-[x] Step 18.2: Split Large Artifacts Action File
-**Task**: Refactor `lib/actions/artifacts.ts` (710 lines) into focused modules: CRUD operations, comment functionality, and permissions. This improves maintainability and follows single responsibility principle.
-**Suggested Files for Context**: `lib/actions/artifacts.ts`, `lib/actions/projects.ts`, other files in `lib/actions/`
-**Step Dependencies**: Step 18.1 completed
-**User Instructions**: None
-
-[x] Step 18.3: Create Shared Authorization Helpers
-**Task**: Extract repetitive authorization patterns from `projects.ts` and `artifacts.ts` into reusable helpers. This reduces 200+ lines of duplicated permission checking code.
-**Suggested Files for Context**: `lib/actions/projects.ts`, `lib/actions/artifacts.ts`
-**Step Dependencies**: Step 18.2 completed
-**User Instructions**: None
-
-[x] Step 18.4: Implement Shared Validation Utilities ✅ COMPLETED
-**Task**: Create common validation functions for projectId, userId, and other parameters that are validated repeatedly across action files. This will be essential for Phase 5 form validation.
-**Suggested Files for Context**: `lib/actions/projects.ts`, `lib/actions/artifacts.ts`, `lib/actions/notifications.ts`
-**Step Dependencies**: None
-**User Instructions**: None
-**Implementation Notes**: Successfully created comprehensive shared validation utilities module:
-
-**Core Validation Module Created:**
-- Created `lib/shared/validation.ts` with 15 specialized validation functions
-- Implemented type-safe validation utilities following TypeScript strict mode
-- Provides consistent, user-friendly error messages across the application
-
-**Key Validation Functions Implemented:**
-- **ID Validators**: `validateId()`, `validateProjectId()`, `validateUserId()`, `validateTeamId()`, `validateArtifactId()`, `validateNotificationId()`
-- **String Validators**: `validateRequiredString()`, `validateOptionalString()`, `validateStringLength()`
-- **Array Validators**: `validateArray()`, `validateStringArray()` with individual item validation
-- **Numeric Validators**: `validateNumber()`, `validateRange()` for constrained numeric inputs
-- **Format Validators**: `validateUrl()`, `validateEnum()`, `validateToken()` for specific data formats
-
-**Code Refactoring Completed:**
-- **projects.ts**: Replaced ~30 lines of repetitive validation logic across 5 functions
-- **notifications.ts**: Updated 3 functions with standardized validation patterns
-- **artifacts/crud.ts**: Modernized validation in artifact creation and deletion functions
-- **artifacts/comments.ts**: Enhanced comment and mention validation with array utilities
-
-**Key Benefits Achieved:**
-- **Code Reduction**: Eliminated ~200+ lines of duplicated validation code across action files
-- **Consistency**: Standardized error messages and validation patterns throughout the application
-- **Type Safety**: Enhanced TypeScript safety with branded types and strict validation
-- **Maintainability**: Single source of truth for validation logic reduces future maintenance overhead
-- **Frontend Ready**: Validation utilities prepared for Phase 5 form validation integration
-
-**Technical Implementation:**
-- Uses TypeScript generics for flexible yet type-safe validation functions
-- Follows Single Responsibility Principle with focused, composable validation utilities
-- Maintains backward compatibility while reducing code duplication
-- Comprehensive parameter validation with context-specific error messages
-- All functions follow existing codebase patterns and conventions
-
-**Verification:**
-- Successfully passed TypeScript compilation with `npm run build` (0 errors)
-- Passed ESLint validation with `npm run lint` (0 warnings)
-- All validation functions follow established security and authorization patterns
-- Ready for Phase 5 frontend integration
-
-The shared validation utilities provide a solid foundation for Phase 5 form validation while significantly improving code quality and maintainability across the backend action layer.
-
-[x] Step 18.5: Standardize Action Response Types
-**Task**: Create consistent return types for all server actions using discriminated unions. This improves TypeScript safety and makes error handling predictable for frontend components.
-**Suggested Files for Context**: All files in `lib/actions/`, existing TypeScript interfaces in the project
-**Step Dependencies**: None
-**User Instructions**: None
-**Implementation Notes**:
-  1. Created Comprehensive Response Type System (lib/shared/action-types.ts)
-
-  - Discriminated Union: Uses success: boolean as discriminator
-  - Flexible Response Types: Supports data, IDs, messages, and tokens
-  - Type Safety: Full TypeScript compile-time safety
-  - Helper Functions: Utility functions for creating consistent responses
-  - Type Guards: Functions to check response types safely
-
-  2. Updated All Server Actions (23 functions across 9 files)
-
-  - AI Actions (lib/actions/ai.ts): 1 function
-  - Notifications (lib/actions/notifications.ts): 3 functions
-  - Teams (lib/actions/teams.ts): 3 functions
-  - Projects (lib/actions/projects.ts): 5 functions
-  - Problems (lib/actions/problems.ts): 2 functions
-  - Artifacts (lib/actions/artifacts/): 4 functions across 2 files
-
-  3. Consistent Error Handling
-
-  - No More Throws: Replaced exception-based with result-based error handling
-  - Predictable Responses: All actions return the same response structure
-  - Type-Safe: Frontend code can handle success/error cases at compile-time
-
-[x] Step 18.6: Enhance Error Handling with Structured Classes ✅ COMPLETED
-**Task**: Replace generic error strings with structured error classes that provide better debugging information and user-friendly messages for frontend display.
-**Suggested Files for Context**: `lib/actions/projects.ts`, `lib/actions/artifacts.ts`, error handling patterns in existing code
-**Step Dependencies**: Step 18.5 completed
-**User Instructions**: None
-**Implementation Notes**: Successfully implemented comprehensive structured error handling system:
-
-**Error Class Hierarchy Created (lib/shared/errors.ts):**
-- `PBLabError`: Base error class with structured information (code, userMessage, technicalMessage, details, context)
-- `ValidationError`: For input validation failures with field-specific context
-- `AuthenticationError`: For authentication failures with user-friendly messaging
-- `AuthorizationError`: For permission/role-based access control failures
-- `NotFoundError`: For missing resources with proper context
-- `BusinessLogicError`: For domain rule violations and workflow constraints
-- `DatabaseError`: For database operation failures with technical details
-- `ExternalServiceError`: For third-party API failures (AI, storage, etc.)
-- `ConfigurationError`: For missing/invalid environment configuration
-- `RateLimitError`: For API rate limiting scenarios
-
-**Updated Core Modules:**
-- **lib/shared/validation.ts**: All validation functions now throw structured ValidationError instances with detailed context
-- **lib/shared/authorization-utils.ts**: Authorization helpers throw AuthorizationError and BusinessLogicError with specific contexts
-- **lib/actions/shared/authorization.ts**: Enhanced database and permission errors with proper categorization
-- **lib/actions/projects.ts**: Complete error handling transformation with user-friendly response conversion
-- **lib/actions/artifacts/crud.ts**: Updated artifact operations with structured error handling
-- **lib/actions/artifacts/comments.ts**: Enhanced comment and mention system error handling
-- **lib/actions/ai.ts**: Updated AI usage logging with structured error patterns
-
-**Key Features Implemented:**
-- **Dual Messaging**: Technical details for developers, user-friendly messages for frontend display
-- **Rich Context**: Each error includes operation context, parameters, and debugging information
-- **Type Guards**: Helper functions for safe error type checking in frontend code
-- **Consistent Patterns**: All server actions follow same error handling approach with isPBLabError() checks
-- **Logging Integration**: Technical details logged for debugging while users see clean messages
-- **JSON Serialization**: Errors can be serialized for logging and analytics
-
-**Error Response Pattern:**
-```typescript
-try {
-  // Business logic
-} catch (error) {
-  if (isPBLabError(error)) {
-    console.error('Operation error:', getTechnicalDetails(error));
-    return createErrorResponse(getUserMessage(error));
-  }
-  // Handle unexpected errors
-}
-```
-
-**Benefits Achieved:**
-- **Better Debugging**: Detailed context and technical information for development
-- **User Experience**: Clean, helpful error messages for frontend display
-- **Maintainability**: Consistent error handling patterns across the application
-- **Type Safety**: TypeScript-safe error categorization and handling
-- **Production Ready**: Separation of technical details from user-facing messages
-
-**Verification:**
-- Successfully passed TypeScript compilation with `npm run build` (0 errors)
-- Passed ESLint validation with `npm run lint` (0 warnings)
-- All error classes follow established codebase patterns and conventions
-- Ready for Phase 5 frontend integration with improved error handling capabilities
-
-The structured error system provides a solid foundation for robust error handling throughout the application, improving both developer experience and end-user experience.
+**Critical Files**: `lib/shared/validation.ts`, `lib/shared/action-types.ts`, `lib/shared/errors.ts`, refactored `lib/actions/artifacts/` modules, `lib/security/file-validation.ts`.
 
 -----
 
 ## Phase 5: Frontend Implementation
 
-This phase focuses on building the UI for all features, including the new enhancements.
+This phase focuses on building the UI for all features, including the new enhancements. Design should be: Clean, Intuitive, Responsive.
 
-[ ] Step 19: Create Main App Layout (Header and Sidebar)
+[x] Step 19: Create Main App Layout (Header and Sidebar)
 **Task**: Create the main authenticated layout at `app/(main)/layout.tsx`. This will involve creating two new reusable components: `<Header />` in `components/pblab/header.tsx` and `<Sidebar />` in `components/pblab/sidebar.tsx`. The layout should establish the main two-column structure of the app.
 **Suggested Files for Context**: `app/page.tsx`, `components/auth-button.tsx`, `lib/supabase/server.ts`
 **Step Dependencies**: Step 12
 **User Instructions**: None
+**Implementation Notes**:
+ ✅ What We Built:
+
+  1. Main Layout (app/(main)/layout.tsx) - Two-column responsive layout with
+  authentication checks
+  2. Header Component (components/pblab/header.tsx) - User avatar, dropdown menu,
+   and mobile navigation
+  3. Sidebar Component (components/pblab/sidebar.tsx) - Role-based navigation
+  with disabled future features
+  4. Dashboard Pages - Basic placeholder pages for testing the layout
+
+  ✅ Key Features Implemented:
+
+  - Authentication Protection - Redirects unauthenticated users to login
+  - Role-Based Navigation - Different sidebar content for student/educator/admin
+  roles
+  - Responsive Design - Mobile-first with shadcn Sheet component for mobile
+  sidebar
+  - User Context - Fetches user role and name from database
+  - Future-Ready Structure - Marked upcoming features as "Soon" with disabled
+  state
 
 [ ] Step 20: Implement Role-Based Dashboard and Redirects
 **Task**: Create the student dashboard at `app/(main)/student/dashboard/page.tsx` and the educator dashboard at `app/(main)/educator/dashboard/page.tsx`. Implement the role-based redirect at `app/(main)/dashboard/page.tsx` that navigates users to the correct dashboard based on their role from Supabase Auth.
