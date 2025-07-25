@@ -48,6 +48,9 @@ The project will be built upon the provided Next.js starter template. New direct
 │   │   ├── dashboard/           # Main authenticated app view
 │   │   │   ├── layout.tsx       # Dashboard layout (sidebar, header)
 │   │   │   └── page.tsx         # Role-based redirect or default view
+│   │   ├── admin/                 # Admin-specific views
+│   │   │   └── dashboard/
+│   │   │       └── page.tsx       # UI for user/team management
 │   │   ├── educator/            # Educator-specific views
 │   │   │   ├── dashboard/
 │   │   │   │   └── page.tsx     # View of all student teams/projects
@@ -279,6 +282,19 @@ The project will be built upon the provided Next.js starter template. New direct
 - **Error Handling:**
     - AI call fails: Show a user-friendly error message.
     - Saving fails: Inform the user and allow them to retry.
+
+### 3.7 Admin: User & Team Management
+
+- **User Story:** As an admin, I can add/remove users and create/manage teams to set up the learning environment.
+- **Implementation Steps:**
+    1.  Navigate to `/admin/dashboard`.
+    2.  The page displays a data table of all users in the system, with options to filter and sort.
+    3.  A "New User" button opens a modal form to create a new user by providing an email, name, role, and initial password.
+    4.  Each row in the user table has "Edit" and "Delete" actions. "Edit" allows changing a user's role.
+    5.  A separate tab or section on the dashboard provides a similar table and CRUD interface for managing teams.
+- **Error Handling:**
+    - Form validation on client and server.
+    - Confirmation dialogs before any destructive action (e.g., "Are you sure you want to delete this user?").
 
 ---
 

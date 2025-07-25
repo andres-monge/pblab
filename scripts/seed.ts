@@ -48,17 +48,25 @@ export async function seedDatabase() {
     console.log('✅ Environment variables loaded');
     console.log('✅ Supabase client initialized');
     
-    // Early exit check: if sample data already exists, don't re-seed
-    const { data: existingCourse } = await supabase
-      .from('courses')
-      .select('id')
-      .eq('id', '00000000-0000-0000-0000-000000000100')
-      .single();
+    // Check for force flag to bypass early exit check
+    const forceReseed = process.argv.includes('--force');
     
-    if (existingCourse) {
-      console.log('ℹ️  Sample data already exists. Skipping seeding process.');
-      console.log('🎉 Database seeding completed (no changes needed)!');
-      return;
+    if (!forceReseed) {
+      // Early exit check: if sample data already exists, don't re-seed
+      const { data: existingCourse } = await supabase
+        .from('courses')
+        .select('id')
+        .eq('id', '00000000-0000-0000-0000-000000000100')
+        .single();
+      
+      if (existingCourse) {
+        console.log('ℹ️  Sample data already exists. Skipping seeding process.');
+        console.log('💡 Use --force flag to recreate users with passwords for testing.');
+        console.log('🎉 Database seeding completed (no changes needed)!');
+        return;
+      }
+    } else {
+      console.log('🔄 Force flag detected. Will recreate users with passwords...');
     }
     
     console.log('📝 No existing sample data found. Proceeding with seeding...');
@@ -91,42 +99,55 @@ export async function seedDatabase() {
 }
 
 /**
- * Create sample users: 2 educators and 4 students
- * Uses Supabase Auth Admin API to create authenticated users
+ * Create sample users: 1 admin, 2 educators and 4 students
+ * Uses Supabase Auth Admin API to create authenticated users with password authentication
  */
 async function createSampleUsers() {
   console.log('👥 Creating sample users...');
   
   const usersToCreate = [
+    // Admin
+    {
+      email: 'admin@university.edu',
+      password: 'password123',
+      user_metadata: { name: 'Admin User', role: 'admin' },
+      email_confirm: true
+    },
     // Educators
     {
       email: 'educator1@university.edu',
+      password: 'password123',
       user_metadata: { name: 'Educator 1', role: 'educator' },
       email_confirm: true
     },
     {
       email: 'educator2@university.edu',
+      password: 'password123',
       user_metadata: { name: 'Educator 2', role: 'educator' },
       email_confirm: true
     },
     // Students
     {
       email: 'student1@university.edu',
+      password: 'password123',
       user_metadata: { name: 'Student 1', role: 'student' },
       email_confirm: true
     },
     {
       email: 'student2@university.edu',
+      password: 'password123',
       user_metadata: { name: 'Student 2', role: 'student' },
       email_confirm: true
     },
     {
       email: 'student3@university.edu',
+      password: 'password123',
       user_metadata: { name: 'Student 3', role: 'student' },
       email_confirm: true
     },
     {
       email: 'student4@university.edu',
+      password: 'password123',
       user_metadata: { name: 'Student 4', role: 'student' },
       email_confirm: true
     }
@@ -175,7 +196,7 @@ async function createSampleUsers() {
   
   // Note: No manual public.users upsert needed - the database trigger handles this automatically
   
-  console.log('✅ Created 6 sample users (2 educators, 4 students)');
+  console.log('✅ Created 7 sample users (1 admin, 2 educators, 4 students)');
   return createdUsers;
 }
 
