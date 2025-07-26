@@ -1,4 +1,4 @@
-Here is a step-by-step manual testing plan from a user's perspective for the front-end implementation (Steps 19-26).
+Here is a step-by-step manual testing plan from a user's perspective for the front-end implementation (Steps 19-26 of @implementation-plan.md).
 
 This guide assumes you have successfully run the database seeding script (`npm run db:seed`) and the test accounts are available.
 
