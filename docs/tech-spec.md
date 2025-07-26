@@ -283,18 +283,30 @@ The project will be built upon the provided Next.js starter template. New direct
     - AI call fails: Show a user-friendly error message.
     - Saving fails: Inform the user and allow them to retry.
 
-### 3.7 Admin: User & Team Management
+### 3.7 Admin: User, Team & Course Management
 
-- **User Story:** As an admin, I can add/remove users and create/manage teams to set up the learning environment.
+- **User Story:** As an admin, I can manage users, teams, and courses to set up the learning environment.
 - **Implementation Steps:**
-    1.  Navigate to `/admin/dashboard`.
-    2.  The page displays a data table of all users in the system, with options to filter and sort.
-    3.  A "New User" button opens a modal form to create a new user by providing an email, name, role, and initial password.
-    4.  Each row in the user table has "Edit" and "Delete" actions. "Edit" allows changing a user's role.
-    5.  A separate tab or section on the dashboard provides a similar table and CRUD interface for managing teams.
+    1. Navigate to `/admin/dashboard`.
+    2. **User Management:**
+        - Display all users in a data table with columns for name, email, and role
+        - "Create User" button opens modal form (name, email, role, initial password)
+        - "Edit" action allows changing user roles only (not names/emails)
+        - "Delete" action removes users with confirmation dialog
+    3. **Team Management:**
+        - Display all teams with columns for team name, course, and member count
+        - "Create Team" button opens modal form (team name, assign to course)
+        - Click team to manage members (add/remove users from team)
+        - "Delete" action removes teams with confirmation dialog
+    4. **Course Management:**
+        - Display all courses in simple list/table format
+        - "Create Course" button opens modal form (course name)
+        - "Edit" action allows changing course names
+        - "Delete" action removes courses with confirmation dialog
 - **Error Handling:**
-    - Form validation on client and server.
-    - Confirmation dialogs before any destructive action (e.g., "Are you sure you want to delete this user?").
+    - Form validation on client and server
+    - Confirmation dialogs before destructive actions
+    - Email validation for new users
 
 ---
 
@@ -477,29 +489,34 @@ Server actions will be the primary mechanism for client components to mutate dat
 
 ### 5.1 Database Actions (`lib/actions/*.ts`)
 
+#### Core Project Actions
 - **`createProject(problemId, teamId)`**: Creates a new project instance. Returns the new project's ID.
-    
 - **`updateProjectPhase(projectId, newPhase)`**: Updates a project's phase. Performs authorization checks.
-    
 - **`updateProjectReportUrl(projectId, url)`**: Sets the final report URL.
-    
 - **`updateProjectReportContent(projectId, url, content)`**: Sets both the final report URL and caches the plain text content.
-    
 - **`updateProjectLearningGoals(projectId, goals)`**: Saves the student-defined learning goals to the project.
-    
-- **`createArtifact(data)`**: Creates a new artifact record. Input: `{ projectId, uploaderId, title, url, type }`.
-    
-- **`deleteArtifact(artifactId)`**: Deletes an artifact. Checks if the user is the owner or an educator.
-    
-- **`createComment(data)`**: Creates a new comment. Input: `{ artifactId, authorId, body, mentionedUserIds? }`. **After saving, it validates the mentioned user IDs and creates records in the `notifications` table for each valid mention.**
 
+#### Artifact & Comment Actions
+- **`createArtifact(data)`**: Creates a new artifact record. Input: `{ projectId, uploaderId, title, url, type }`.
+- **`deleteArtifact(artifactId)`**: Deletes an artifact. Checks if the user is the owner or an educator.
+- **`createComment(data)`**: Creates a new comment. Input: `{ artifactId, authorId, body, mentionedUserIds? }`. After saving, validates mentioned user IDs and creates notification records.
 - **`getProjectMentionableUsers(projectId)`**: Returns team members and course educators available for mention in the given project.
-    
+
+#### Problem & Notification Actions  
 - **`createProblem(data)`**: A transactional server action to create a problem and its associated rubric/criteria.
-    
 - **`getNotifications(userId)`**: Fetches all notifications for the given user, typically filtered for unread.
-    
 - **`markNotificationAsRead(notificationId)`**: Marks a specific notification as read.
+
+#### Admin Management Actions
+- **`createUser(data)`**: Creates a new user account. Input: `{ name, email, role, password }`. Admin-only access.
+- **`updateUserRole(userId, newRole)`**: Updates a user's role. Input validation and admin authorization required.
+- **`deleteUser(userId)`**: Removes a user from the system. Cascading deletes handled by database constraints.
+- **`createTeam(data)`**: Creates a new team. Input: `{ name, courseId }`. Admin-only access.
+- **`updateTeamMembers(teamId, userIds)`**: Manages team membership by adding/removing users. Input: array of user IDs.
+- **`deleteTeam(teamId)`**: Removes a team. Admin authorization and cascade handling required.
+- **`createCourse(data)`**: Creates a new course. Input: `{ name }`. Admin-only access.
+- **`updateCourse(courseId, data)`**: Updates course information. Input: `{ name }`. Admin-only access.
+- **`deleteCourse(courseId)`**: Removes a course. Admin authorization and cascade handling required.
     
 
 ### 5.2 API Routes (`app/api/**/*`)
