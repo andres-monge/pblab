@@ -217,6 +217,17 @@ During Step 21, identified and implemented missing invite system components:
 **Step Dependencies**: Step 22
 **User Instructions**: None
 
+[ ] Step 22.2: Implement Dynamic Dashboard Data Fetching
+  **Task**: Convert static dashboard components to dynamic ones that fetch real
+  data. For student dashboard: implement server-side data fetching for user's
+  teams, active projects, and notifications. For educator dashboard: fetch course
+  projects and team overview. For admin dashboard: implement the full CRUD
+  interface described in tech spec section 3.7.
+  **Suggested Files for Context**: `lib/actions/`, `lib/supabase/server.ts`,
+  current dashboard pages
+  **Step Dependencies**: Step 22 (basic dashboard structure), database seeding
+  completed
+
 [ ] Step 23: Implement Notifications UI
 **Task**: 1. Create the `<NotificationsIndicator />` component in `components/pblab/notifications/`. It should use the `getNotifications` server action to fetch data and display a badge with the unread count. 2. Clicking the indicator should open a dropdown panel listing notifications with links. 3. Integrate `<NotificationsIndicator />` into the `<Header />` component. 4. Clicking a notification should navigate to its `reference_url` and call the `markNotificationAsRead` action.
 **Suggested Files for Context**: `components/pblab/header.tsx`, `lib/actions/notifications.ts`, `lib/db.types.ts`

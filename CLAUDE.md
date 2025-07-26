@@ -10,6 +10,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Generate database types**: `npm run types:gen` (generates TypeScript types from Supabase)
 - **Seed database**: `npm run db:seed`
 
+### Development Server Testing
+
+**IMPORTANT**: When testing if the dev server starts successfully, use a short timeout (5 seconds max) with the Bash tool. The server typically starts within 1-2 seconds. If you see "Ready in [time]ms" in the output, the server started successfully - don't wait for the full timeout. Use this pattern:
+
+```bash
+# Test server startup (5s timeout is sufficient)
+npm run dev
+```
+
+Once you see "Ready in Xms", the server is working. Stop the command and proceed with testing.
+
 ## Project Architecture
 
 **PBLab** is an MVP for an AI-augmented Problem-Based Learning platform built with Next.js 15, Supabase, and TypeScript. The application follows a clear separation between educational workflows and technical implementation.

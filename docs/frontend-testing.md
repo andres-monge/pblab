@@ -1,111 +1,147 @@
-### \#\# Testing Prerequisites
+Here is a step-by-step manual testing plan from a user's perspective for the front-end implementation (Steps 19-26).
 
-Before starting, ensure you have successfully run the database seeding script:
+This guide assumes you have successfully run the database seeding script (`npm run db:seed`) and the test accounts are available.
 
-1.  Run `npm install` to get all dependencies.
-2.  Run `npm run db:seed` from your terminal.
-3.  This populates your database with **2 educators**, **4 students**, **1 course**, **2 teams**, **2 problems**, and **4 projects**, as detailed in your PRD.
+---
 
------
+## 🧪 Frontend Manual Testing Plan
 
-### \#\#\# Step 19: Main App Layout
+### Step 19 & 22: Main Layout and Role-Based Dashboards
 
-**Objective:** Verify that the core authenticated application layout, including the header and sidebar, renders correctly after a user logs in.
+**Objective:** Ensure the main application layout is functional, responsive, and correctly displays role-specific navigation and dashboards after login.
 
-| \# | User Action | ✅ Expected Outcome |
-| :--- | :--- | :--- |
-| 1 | Log in using the magic link for **`educator1@university.edu`**. | You are successfully logged in and redirected to the main application. |
-| 2 | Observe the overall page layout. | You see a two-column layout: a navigation sidebar on the left and a main content area on the right. |
-| 3 | Check the header at the top of the main content area. | The header contains the **PBLab logo** and a user menu on the far right with the name "Educator 1". |
-| 4 | Click the user menu. | A dropdown appears with a "Logout" option. Clicking it logs you out. |
+**Credentials to Use:**
+* **Admin:** `admin@university.edu` / `password123`
+* **Educator:** `educator1@university.edu` / `password123`
+* **Student:** `student1@university.edu` / `password123`
 
-\<br\>
+**Testing Actions:**
 
------
+1.  **Test Student Role:**
+    * Go to the login page.
+    * Log in as **`student1@university.edu`**.
+    * **Verify Redirect:** You should be redirected to the student dashboard, and the URL should be `/student/dashboard`.
+    * **Verify Header:** The header should display the user's name ("Student 1") or an avatar.
+    * **Verify Sidebar:** The sidebar should show student-specific navigation links.
+    * **Verify Content:** The dashboard should display the projects assigned to "Team Alpha" ("Outbreak Simulator" and "EcoBalance").
 
-### \#\#\# Step 20: Role-Based Dashboards and Redirects
+2.  **Test Educator Role:**
+    * Log out.
+    * Log in as **`educator1@university.edu`**.
+    * **Verify Redirect:** You should be redirected to the educator dashboard at `/educator/dashboard`.
+    * **Verify Header & Sidebar:** Confirm the header shows "Educator 1" and the sidebar displays educator-specific links (e.g., "Dashboard," "Problems").
+    * **Verify Content:** The dashboard should show a view of all teams and projects, including "Team Alpha" and "Team Beta".
 
-**Objective:** Confirm that users are automatically routed to the correct dashboard for their role and cannot access pages for other roles.
+3.  **Test Admin Role:**
+    * Log out.
+    * Log in as **`admin@university.edu`**.
+    * **Verify Redirect:** You should be redirected to the admin dashboard at `/admin/dashboard`.
+    * **Verify Header & Sidebar:** Confirm the header shows "Admin User" and the sidebar has admin links.
 
-| \# | User Action | ✅ Expected Outcome |
-| :--- | :--- | :--- |
-| 1 | Log in as the educator: **`educator1@university.edu`**. | You are automatically redirected to `/educator/dashboard`. The page should show projects for both "Team Alpha" and "Team Beta". |
-| 2 | Log out. | You are returned to the login page. |
-| 3 | Log in as the student: **`student1@university.edu`**. | You are automatically redirected to `/student/dashboard`. The page shows the two projects assigned to "Team Alpha": **"Outbreak Simulator"** and **"EcoBalance"**. You should not see any projects for "Team Beta". |
-| 4 | While logged in as `student1`, manually type `/educator/dashboard` into the browser's address bar and press Enter. | You are blocked from viewing the page and are either redirected to your own dashboard or shown a "Not Found" / "Permission Denied" message. |
+4.  **Test Responsiveness:**
+    * While logged in, open your browser's developer tools and switch to a mobile view (e.g., iPhone 12).
+    * **Verify Layout:** The sidebar should collapse into a hamburger menu icon. Clicking the icon should open the navigation panel. The layout should be clean and usable.
 
-\<br\>
+### Step 20 & 21: Password Authentication and Student Invite Flow
 
------
+**Objective:** Verify that the password login form works correctly and that the entire student-invite-to-team flow is functional for new users.
 
-### \#\#\# Step 21: Notifications UI
+**Testing Actions:**
 
-**Objective:** Test the full notification workflow: receiving a notification, viewing it, and marking it as read by interacting with it.
+1.  **Test Login Form:**
+    * Go to the login page.
+    * Confirm the form has fields for **email** and **password**.
+    * Enter an incorrect password for `student1@university.edu`. Verify that a clear error message is displayed.
+    * Log in successfully with the correct credentials.
 
-**Prerequisite:** This test is best performed after Step 24 is complete. In Step 24, you will have `student1` mention `student2`. Once that's done, you can proceed with this test.
+2.  **Test Student Invite Flow (The "Happy Path"):**
+    * **Generate Invite Link:** As an **Educator**, navigate to the team management page. Select a team (e.g., "Team Beta") and click a "Generate Invite Link" button. Copy the generated URL.
+    * **Log Out** of the educator account.
+    * **Open Invite Link:** In a new browser tab or an incognito window, paste the invite link.
+    * **Verify Signup Context:** The page should show a special signup form indicating "You have been invited to join Team Beta."
+    * **Sign Up New User:** Create a *new* student account (e.g., `student5@university.edu`, password `password123`).
+    * **Verify Outcome:** After successfully signing up, you should be automatically:
+        * Logged in as the new student.
+        * Added as a member of "Team Beta".
+        * Redirected to the student dashboard, where you can see the team's projects.
 
-| \# | User Action | ✅ Expected Outcome |
-| :--- | :--- | :--- |
-| 1 | Log in as **`student2@university.edu`** (the user who was mentioned). | In the header, the notification bell icon has a **red badge** with the number "1". |
-| 2 | Click the notification bell icon. | A dropdown panel appears, listing the notification from "Student 1". |
-| 3 | Click on the notification text in the dropdown. | You are navigated to the correct project page, and the comment where you were mentioned should be visible. |
-| 4 | After the page loads, look back at the notification bell icon. | The red badge is **gone**. Clicking the bell again shows the notification as read (e.g., grayed out). |
+### Step 22.1: Admin Dashboard CRUD
 
-\<br\>
+**Objective:** Ensure the admin can fully manage users and teams.
 
------
+**Testing Actions:**
 
-### \#\#\# Step 22: Project Workspace & Learning Goal Editor
+1.  Log in as **`admin@university.edu`**.
+2.  Navigate to the user management section of the admin dashboard.
+3.  **Read Users:** Verify that a table displays all seeded users (`admin@...`, `educator1@...`, `student1@...`, etc.).
+4.  **Create User:**
+    * Find and click a "New User" button.
+    * Fill out the form to create a new user: `test-student@university.edu`, name "Test Student", role "student".
+    * Confirm the new user appears in the user list.
+5.  **Update User:**
+    * Find the newly created "Test Student" in the list.
+    * Click an "Edit" button.
+    * Change their role from "student" to "educator".
+    * Save the changes and verify the role is updated in the list.
+6.  **Delete User:**
+    * Find the "Test Student" user again.
+    * Click a "Delete" button.
+    * Verify that a confirmation modal appears before deletion.
+    * Confirm the deletion, and ensure the user is removed from the list.
+7.  **Test Team CRUD:** Repeat steps 3-6 for the team management interface.
 
-**Objective:** Ensure the student project workspace loads and the Learning Goal Editor functions correctly.
+### Step 24 & 26: Project Workspace (Pre-discussion Phase)
 
-**🔴 Important Prerequisite:** The seed script creates all projects in the `'research'` phase. To test the Learning Goal editor, you must first manually change a project's phase to `'pre'`.
+**Objective:** Test the Learning Goal editor and artifact/comment functionality for a project in the 'pre' phase.
 
-  * **Action:** Go to your Supabase Studio -\> SQL Editor and run this command:
-    ```sql
-    UPDATE public.projects 
-    SET phase = 'pre' 
-    WHERE id = '00000000-0000-0000-0000-000000000500'; -- Team Alpha's "Outbreak Simulator" project
-    ```
+**Note:** The seed script sets projects to 'research'. For this test, you may need to manually update a project's `phase` to `'pre'` in your Supabase database.
 
-| \# | User Action | ✅ Expected Outcome |
-| :--- | :--- | :--- |
-| 1 | Log in as **`student1@university.edu`**. From the dashboard, click on the **"Outbreak Simulator"** project. | The project page `/p/[projectId]` loads, displaying the detailed problem description from your PRD. |
-| 2 | Locate the **"Learning Goals"** section. | Because the phase is now `'pre'`, the `<LearningGoalEditor />` component is visible. |
-| 3 | Click the **"AI Suggestions"** button. | A loading indicator appears, followed by 3-5 relevant learning goals based on the Epidemiology problem. |
-| 4 | Type a goal into the main text area, e.g., `Understand the SIR model.`. | The text area works as expected. |
-| 5 | Click **"Save Goals"**. | A confirmation message (e.g., a toast notification) appears. |
-| 6 | **Hard refresh** the browser page. | After reloading, the goal you typed is still in the editor, confirming it was saved. |
+**Testing Actions:**
 
-\<br\>
+1.  Log in as a student (`student1@university.edu`, Team Alpha).
+2.  Navigate to the "Outbreak Simulator" project page, which you have set to the **`pre`** phase.
+3.  **Test Learning Goal Editor:**
+    * Verify the `<LearningGoalEditor />` component is visible.
+    * Click the **"AI Suggestions"** button. A list of relevant goals should appear.
+    * Type your own goals into the main text area (e.g., "Understand the SIR model").
+    * Click **"Save Goals"**.
+    * **Reload the page.** Your saved goals should still be present in the editor.
 
------
+4.  **Test Artifacts and Comments:**
+    * Find the `<ArtifactUploader />`.
+    * **Add a Link:** Paste a URL (e.g., `https://www.google.com`) and give it a title. Verify it appears as an `<ArtifactCard />`.
+    * **Add a File:** Try to upload a `.jpg` or `.png` file. Verify it succeeds.
+    * **Test Security:** Try to upload an `.exe` file. Verify you receive an error message and the upload is blocked.
+    * In the comment section of an artifact, find the **@mention** feature.
+    * Verify the list of mentionable users includes `Student 2` and `Educator 1` but **not** `Student 3` (who is on another team).
+    * Post a comment: `Hey @Student 2, check this out.`
 
-### \#\#\# Step 23: AI Tutor with Shared History
+### Step 23: Notifications UI
 
-**Objective:** Verify that the AI Tutor chat is a shared, persistent resource for all team members within a specific project.
+**Objective:** Test that @mentions create notifications that are visible and functional.
 
-| \# | User Action | ✅ Expected Outcome |
-| :--- | :--- | :--- |
-| 1 | Log in as **`student1@university.edu`**. Navigate to the **"EcoBalance"** project page. | The project page loads. |
-| 2 | Find the **AI Tutor** chat. Ask a question relevant to the problem, e.g., `"Explain the Lotka-Volterra equations"`. | Your question and the AI's response appear in the chat window. |
-| 3 | Log out. Now, log in as **`student2@university.edu`** (the other member of Team Alpha). | |
-| 4 | Navigate to the **same "EcoBalance"** project page. | The project page loads. |
-| 5 | Find the **AI Tutor** chat component. | The chat window displays the **entire conversation**, including the question and answer from Student 1's session, confirming the shared history. |
+**Testing Actions:**
 
-\<br\>
+1.  In one browser, be logged in as `student1@university.edu`.
+2.  In a **separate browser or incognito window**, log in as `student2@university.edu`.
+3.  As **Student 1**, perform the final action from the previous test: post a comment mentioning `@Student 2`.
+4.  Switch to **Student 2's** browser.
+5.  **Verify Notification:** Look at the header. A notification indicator (e.g., a red dot) should appear on a bell icon.
+6.  Click the bell icon. A dropdown should appear showing the notification from Student 1.
+7.  Click the notification. You should be taken directly to the artifact and the specific comment.
+8.  The notification should now be marked as read, and the indicator dot should disappear.
 
------
+### Step 25: Shared AI Tutor Chat
 
-### \#\#\# Step 24: Artifacts and Comments with @Mentions
+**Objective:** Verify the AI Tutor chat history is shared in real-time between team members and maintains conversational context.
 
-**Objective:** Test the artifact uploader and ensure the commenting system allows for user-selection @mentions that trigger notifications.
+**Testing Actions:**
 
-| \# | User Action | ✅ Expected Outcome |
-| :--- | :--- | :--- |
-| 1 | Log in as **`student1@university.edu`** and navigate to the **"Outbreak Simulator"** project. | The project workspace is displayed. |
-| 2 | Use the **`<ArtifactUploader />`** to upload a file (e.g., a `.png` chart or a `.txt` note). | The file uploads successfully, and a new "artifact card" appears in the UI. |
-| 3 | On the new artifact card, find the comment input field. | A text area for writing comments is visible. |
-| 4 | Click the **@mention button** or type "@". | A dropdown list appears, showing "Student 2" and "Educator 1" (and other educators). Your own name, "Student 1", is not in the list. |
-| 5 | Select **"Student 2"** from the list, write a message like `"@Student 2, what do you think of this data?"`, and post the comment. | The comment appears under the artifact with the mentioned user's name highlighted. |
-| 6 | *(Verification)* Log in as **`student2@university.edu`**. | As per Step 21, the notification indicator in the header now shows a badge. |
+1.  Have `student1@university.edu` and `student2@university.edu` (Team Alpha) logged in on separate browsers and navigated to the same project page (e.g., "EcoBalance").
+2.  As **Student 1**, open the `<AiTutorChat />` component.
+3.  Ask a question from the PRD: `"Derive Lotka-Volterra from first principles"`
+4.  Once the AI replies, switch to **Student 2's** browser.
+5.  **Verify Shared History:** The chat window for Student 2 should display the question from Student 1 and the AI's response.
+6.  As **Student 2**, ask a contextual follow-up: `"How can I use this to show population collapse?"`
+7.  Verify the AI provides a relevant answer that builds on the previous topic.
+8.  Switch back to **Student 1's** browser and confirm the entire conversation is visible.

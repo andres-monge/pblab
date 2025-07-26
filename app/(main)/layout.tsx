@@ -1,43 +1,24 @@
-import { createClient } from "@/lib/supabase/server";
-import { redirect } from "next/navigation";
 import { Header } from "@/components/pblab/header";
 import { Sidebar } from "@/components/pblab/sidebar";
+import { getAuthenticatedUser } from "@/lib/auth/user-utils";
 
 export default async function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-
-  // Check if user is authenticated
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
-
-  // Get user role from database
-  const { data: userData } = await supabase
-    .from("users")
-    .select("role, name")
-    .eq("id", user.id)
-    .single();
-
-  const userRole = userData?.role || "student";
-  const fullName = userData?.name || user.email?.split("@")[0] || "User";
+  // Get authenticated user with error handling
+  const user = await getAuthenticatedUser();
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <Header user={{ ...user, role: userRole, full_name: fullName }} />
+      <Header user={{ ...user, full_name: user.name }} />
       
       {/* Main content area with sidebar */}
       <div className="flex h-[calc(100vh-4rem)]">
         {/* Sidebar */}
-        <Sidebar userRole={userRole} />
+        <Sidebar userRole={user.role} />
         
         {/* Main content */}
         <main className="flex-1 overflow-y-auto p-6">
