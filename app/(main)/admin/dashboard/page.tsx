@@ -405,9 +405,12 @@ export default function AdminDashboard() {
         title={`Delete ${deleteConfirmation?.type || 'Item'}`}
         description={`Are you sure you want to delete this ${deleteConfirmation?.type}?`}
         itemName={
-          deleteConfirmation?.type === 'user' 
-            ? deleteConfirmation.item.email
-            : deleteConfirmation?.item.name || 'Unknown'
+          deleteConfirmation?.type === 'user'
+            ? (deleteConfirmation.item as UserWithDetails).email
+            : (
+                (deleteConfirmation?.item as TeamWithDetails | CourseWithDetails)
+                  ?.name ?? 'Unknown'
+              )
         }
         onConfirm={
           deleteConfirmation?.type === 'user' 

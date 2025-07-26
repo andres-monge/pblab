@@ -46,7 +46,7 @@ export function EditUserModal({ user, open, onOpenChange, onSuccess }: EditUserM
         onOpenChange(false);
         onSuccess?.();
       } else {
-        setError(result.message);
+        setError(result.error);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");

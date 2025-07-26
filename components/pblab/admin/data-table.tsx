@@ -32,7 +32,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
 }
 
-export function DataTable<T extends Record<string, unknown>>({
+export function DataTable<T extends object>({
   data,
   columns,
   actions = [],
@@ -40,7 +40,12 @@ export function DataTable<T extends Record<string, unknown>>({
 }: DataTableProps<T>) {
   const getValue = (item: T, key: string): unknown => {
     // Handle nested keys like "user.name"
-    return key.split('.').reduce((obj, k) => obj?.[k], item);
+    return key.split('.').reduce<unknown>((obj, k) => {
+      if (obj && typeof obj === "object") {
+        return (obj as Record<string, unknown>)[k];
+      }
+      return undefined;
+    }, item as unknown);
   };
 
   const formatValue = (value: unknown): React.ReactNode => {
@@ -112,7 +117,9 @@ export function DataTable<T extends Record<string, unknown>>({
         </TableHeader>
         <TableBody>
           {data.map((item, index) => (
-            <TableRow key={item.id || index}>
+            <TableRow key={(
+              (item as unknown as { id?: string | number })?.id ?? index
+            ).toString()}>
               {columns.map((column) => (
                 <TableCell key={String(column.key)} className={column.className}>
                   {column.cell 

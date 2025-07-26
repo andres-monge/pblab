@@ -124,6 +124,19 @@ export async function getStudentDashboardData(): Promise<QueryResult<StudentDash
     
     const supabase = await createClient();
 
+    // Determine team IDs for the current student
+    const { data: teamIdRows, error: teamIdError } = await supabase
+      .from('teams_users')
+      .select('team_id')
+      .eq('user_id', user.id);
+
+    if (teamIdError) {
+      console.error('Failed to fetch team memberships:', teamIdError);
+      throw new Error(`Failed to fetch team memberships: ${teamIdError.message}`);
+    }
+
+    const teamIds = (teamIdRows || []).map((row) => row.team_id);
+
     // Fetch student's active projects
     const { data: projects, error: projectsError } = await supabase
       .from('projects')
@@ -140,12 +153,7 @@ export async function getStudentDashboardData(): Promise<QueryResult<StudentDash
           name
         )
       `)
-      .in('team_id', 
-        supabase
-          .from('teams_users')
-          .select('team_id')
-          .eq('user_id', user.id)
-      )
+      .in('team_id', teamIds.length > 0 ? teamIds : [''])
       .neq('phase', 'closed')
       .order('updated_at', { ascending: false })
       .limit(10);
@@ -230,7 +238,7 @@ export async function getStudentDashboardData(): Promise<QueryResult<StudentDash
           id: tm.team.id,
           name: tm.team.name,
           course: {
-            name: tm.team.course.name,
+            name: tm.team.course?.name ?? '',
           },
         },
       })) || [],

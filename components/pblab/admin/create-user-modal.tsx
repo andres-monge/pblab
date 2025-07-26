@@ -40,7 +40,7 @@ export function CreateUserModal({ onSuccess }: CreateUserModalProps) {
         setFormData({ name: "", email: "", role: "student", password: "" });
         onSuccess?.();
       } else {
-        setError(result.message);
+        setError(result.error);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");

@@ -60,7 +60,7 @@ export function CreateTeamModal({ onSuccess }: CreateTeamModalProps) {
         setFormData({ name: "", courseId: "" });
         onSuccess?.();
       } else {
-        setError(result.message);
+        setError(result.error);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "An unexpected error occurred");

@@ -27,12 +27,12 @@ type TeamInsert = Database["public"]["Tables"]["teams"]["Insert"];
 export interface TeamWithDetails {
   id: string;
   name: string;
-  course_id: string;
+  course_id: string | null;
   created_at: string;
   course: {
     id: string;
     name: string;
-  };
+  } | null;
   member_count: number;
   members: Array<{
     id: string;
@@ -129,10 +129,10 @@ export async function getAllTeams(): Promise<QueryResult<TeamWithDetails[]>> {
       name: team.name,
       course_id: team.course_id,
       created_at: team.created_at,
-      course: {
+      course: team.course ? {
         id: team.course.id,
         name: team.course.name,
-      },
+      } : null,
       member_count: team.members.length,
       members: team.members.map((member) => ({
         id: member.user.id,
