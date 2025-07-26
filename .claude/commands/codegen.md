@@ -30,7 +30,7 @@ For the next unchecked step in docs/implementation-plan.md, follow the exploreâ†
 ### 3. CODE Phase
 - Work through your todo list systematically    
 - Follow existing code conventions and patterns discovered during exploration    
-- Verify the solution works as expected. If backend-related, run a quick terminal test.
+- Verify the solution works as expected by testing. Testing must follow the requirements in docs/testing-requirements.md.
 - Mark task as completed after verification & note decisions/bugs in @implementationplan.md
 - Do not proceed to work on the next step, I will want to verify the implementation of the existing step first.
 

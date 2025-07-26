@@ -33,6 +33,7 @@ For each step implementation, verify:
 - [ ] Linting passes without warnings (`npm run lint`)
 - [ ] Database migrations run successfully
 - [ ] Type generation works (`npm run types:gen`)
+- [ ] Tests must follow the requirements in docs/testing-requirements.md
 
 ### Documentation & Dependencies
 - [ ] Step dependencies are met (previous steps completed)
