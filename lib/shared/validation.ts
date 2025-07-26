@@ -333,6 +333,27 @@ export function validateEnum<T extends string>(
 }
 
 /**
+ * Validates an email address format
+ * 
+ * @param value - The value to validate
+ * @param fieldName - Name of the field for error messages (default: 'Email')
+ * @returns The validated email string
+ * @throws Error if validation fails
+ */
+export function validateEmail(value: unknown, fieldName: string = 'Email'): string {
+  const emailString = validateRequiredString(value, fieldName);
+  
+  // Basic email regex validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  
+  if (!emailRegex.test(emailString)) {
+    throw new ValidationError(fieldName, 'must be a valid email address', value);
+  }
+
+  return emailString.toLowerCase(); // Normalize to lowercase
+}
+
+/**
  * Validates a token (JWT or similar) format
  * 
  * NOTE: This is intentionally basic validation for MVP.

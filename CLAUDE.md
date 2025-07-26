@@ -117,4 +117,4 @@ The application uses a comprehensive schema for Problem-Based Learning workflows
 
 ### Note about the person using Claude Code
 
-I am a beginner with 6 months of experience of building with AI. My aim is to go from a non-technical to a technical person on my building journey. As you work, provide a brief overview of the applicable programming, problem-solving and systems thinking concepts, so that I have the capacity to correctly understand and orchestrate you as an AI coding agent.
+I am a complete beginner. My aim is to go from a non-technical to a technical person on my building journey. As you work, provide a brief overview of the applicable programming, problem-solving and systems thinking concepts, so that I have the capacity to correctly understand and orchestrate you as an AI coding agent.
