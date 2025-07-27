@@ -54,6 +54,8 @@
 
 **Mention System**: User-selection based workflow with `mentionedUserIds[]` parameter, team member + educator validation, self-mention prevention, atomic operations, and graceful error handling.
 
+**Critical Notifications RLS INSERT Issue Fix**: Authenticated users were unable to create notifications due to missing RLS INSERT policies, despite having correct privileges and session context, resulting in persistent error 42501. The issue was resolved by forcing RLS enforcement, adding a BEFORE INSERT trigger to auto-populate actor_id, and creating a robust WITH CHECK policy ensuring both actor_id and recipient_id match auth.uid().
+
 **AI Integration**: Configured GoogleGenAI with temperature controls, JSON response formatting, comprehensive error handling for rate limits, and audit logging via `logAiUsage()`.
 
 **Critical Files**: `lib/actions/artifacts.ts` (mentions), `app/api/ai/suggest-goals/route.ts`, `app/api/ai/tutor/route.ts`, `@google/genai` package integration.

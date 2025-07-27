@@ -30,6 +30,7 @@ await supabase.auth.signInWithPassword({
 **Test User Accounts:**
 - `student1@university.edu` / `password123` - Student role testing
 - `educator1@university.edu` / `password123` - Educator role testing
+- `admin@university.edu` / `password123` - Admin role testing
 
 ### RLS Policy Testing Checklist
 
