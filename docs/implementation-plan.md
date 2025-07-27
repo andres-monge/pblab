@@ -231,11 +231,47 @@ During Step 21, identified and implemented missing invite system components:
   **Suggested Files for Context**: `lib/actions/`, `lib/supabase/server.ts`, current dashboard pages, `docs/tech-spec.md` (sections 3.7, 5.1)
   **Step Dependencies**: Step 22.1 (basic dashboard structure), database seeding completed
 
-[ ] Step 23: Implement Notifications UI
+[x] Step 23: Implement Notifications UI
 **Task**: 1. Create the `<NotificationsIndicator />` component in `components/pblab/notifications/`. It should use the `getNotifications` server action to fetch data and display a badge with the unread count. 2. Clicking the indicator should open a dropdown panel listing notifications with links. 3. Integrate `<NotificationsIndicator />` into the `<Header />` component. 4. Clicking a notification should navigate to its `reference_url` and call the `markNotificationAsRead` action.
 **Suggested Files for Context**: `components/pblab/header.tsx`, `lib/actions/notifications.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 16, Step 19
 **User Instructions**: None
+**Implementation Notes**:
+✅ What We Built:
+
+  1. **NotificationsIndicator Component** (`components/pblab/notifications/notifications-indicator.tsx`):
+     - Bell icon button with unread count badge overlay
+     - Dropdown menu showing last 5 notifications with actor, type, and timestamp
+     - Click handlers for marking notifications as read and navigation
+     - "No notifications" empty state message
+     - Real-time unread count updates
+
+  2. **Header Integration** (`components/pblab/header.tsx`):
+     - Added NotificationsIndicator between search area and user menu
+     - Maintains responsive design and consistent spacing
+     - Works identically on desktop and mobile
+
+  3. **User Experience Features**:
+     - Visual indicator for unread notifications (blue dot + badge count)
+     - One-click navigation to notification reference URLs
+     - Automatic mark-as-read functionality
+     - Readable timestamp formatting (e.g., "2h ago", "3d ago")
+     - Clean notification type formatting (e.g., "mentioned you in a comment")
+
+  ✅ Key Features Verified:
+  - **Component Integration**: Successfully integrated into Header without layout issues
+  - **TypeScript Safety**: No compilation errors, full type safety with notification interfaces
+  - **Code Quality**: Passes ESLint checks, follows existing patterns
+  - **Server Action Integration**: Properly calls `getNotifications()` and `markNotificationAsRead()` actions
+  - **Responsive Design**: Dropdown works correctly across different screen sizes
+  - **Error Handling**: Graceful handling of fetch and mark-as-read failures
+
+  ✅ Technical Implementation:
+  - Uses shadcn/ui components (DropdownMenu, Badge, Button) for consistency
+  - Implements React hooks (useState, useEffect) for state management
+  - Follows existing code patterns and naming conventions
+  - Properly typed with TypeScript interfaces from notifications actions
+  - Client-side navigation using Next.js useRouter hook
 
 [ ] Step 24: IMPORTANT: Implement Project Workspace with Learning Goal Editor
 **Task**: Create the main project workspace page at `app/p/[projectId]/page.tsx`. Implement the `<LearningGoalEditor />` component (`components/pblab/project/learning-goal-editor.tsx`) and display it when the project is in the 'pre' phase. Wire its "Save" button to the `updateProjectLearningGoals` action and its "AI Suggestions" button to the `/api/ai/suggest-goals` API route.

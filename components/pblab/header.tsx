@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Menu, User, LogOut, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { NotificationsIndicator } from "./notifications/notifications-indicator";
 
 interface HeaderProps {
   user: {
@@ -76,8 +77,11 @@ export function Header({ user }: HeaderProps) {
         {/* Main navigation - could be expanded later */}
         <div className="flex flex-1 items-center justify-between space-x-2 md:justify-end">
           <div className="w-full flex-1 md:w-auto md:flex-none">
-            {/* Future: Search, notifications, etc. */}
+            {/* Future: Search, etc. */}
           </div>
+
+          {/* Notifications */}
+          <NotificationsIndicator />
 
           {/* User menu */}
           <DropdownMenu>
