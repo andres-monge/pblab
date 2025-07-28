@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/db.types";
 import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
-import { CreateResult, createIdResponse, createErrorResponse } from "@/lib/shared/action-types";
+import { CreateResult, createIdResponse, createErrorResponse, QueryResult, createSuccessResponse } from "@/lib/shared/action-types";
 import { 
   isPBLabError, 
   getUserMessage, 
@@ -110,4 +110,168 @@ export async function logAiUsage(params: LogAiUsageParams): Promise<CreateResult
     console.error('Unexpected AI usage logging error:', error);
     return createErrorResponse(`Unexpected error logging AI usage: ${errorMessage}`);
   }
-} 
+}
+
+/**
+ * AI conversation message with user information
+ */
+export interface AiConversationMessage {
+  id: string;
+  message: string;
+  response: string | null;
+  created_at: string;
+  user_id: string;
+  user_name: string;
+  is_ai: boolean;
+}
+
+/**
+ * Parameters for fetching AI tutor conversation history
+ */
+export interface GetAiTutorHistoryParams {
+  /** Project ID to fetch conversation for */
+  projectId: string;
+  /** Number of messages to skip (for pagination) */
+  offset?: number;
+  /** Maximum number of messages to return (default: 10) */
+  limit?: number;
+}
+
+/**
+ * Fetch AI tutor conversation history for a project with pagination
+ * 
+ * Returns conversation history with user information for display in the chat UI.
+ * Includes both user messages and AI responses with proper attribution.
+ * 
+ * @param params - History fetch parameters
+ * @returns Promise resolving to QueryResult with conversation messages or error
+ */
+export async function getAiTutorHistory(params: GetAiTutorHistoryParams): Promise<QueryResult<AiConversationMessage[]>> {
+  const { projectId, offset = 0, limit = 10 } = params;
+
+  // Validate required parameters
+  if (!projectId || typeof projectId !== 'string') {
+    throw new ValidationError('Project ID', 'is required and must be a valid string', projectId);
+  }
+
+  if (offset < 0) {
+    throw new ValidationError('Offset', 'must be a non-negative number', offset);
+  }
+
+  if (limit < 1 || limit > 50) {
+    throw new ValidationError('Limit', 'must be between 1 and 50', limit);
+  }
+
+  try {
+    // Verify user authentication
+    const user = await getAuthenticatedUser();
+    
+    const supabase = await createClient();
+
+    // Verify user has access to the project (RLS will handle this)
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('id, team_id')
+      .eq('id', projectId)
+      .single();
+
+    if (projectError || !projectData) {
+      throw new AuthorizationError(
+        'get_ai_tutor_history',
+        'Project not found or access denied',
+        user.role,
+        { projectId, userId: user.id }
+      );
+    }
+
+    // Fetch conversation history with user information
+    const { data: conversationData, error: conversationError } = await supabase
+      .from('ai_usage')
+      .select(`
+        id,
+        prompt,
+        response,
+        created_at,
+        user_id,
+        users!ai_usage_user_id_fkey (
+          name
+        )
+      `)
+      .eq('project_id', projectId)
+      .eq('feature', 'tutor')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (conversationError) {
+      throw new DatabaseError(
+        'get_ai_tutor_history',
+        conversationError.message,
+        new Error(conversationError.message),
+        { projectId, offset, limit }
+      );
+    }
+
+    // Transform the data into chat messages format
+    const messages: AiConversationMessage[] = [];
+    
+    if (conversationData) {
+      for (const entry of conversationData) {
+        // Extract user message
+        const userMessage = typeof entry.prompt === 'string' 
+          ? entry.prompt 
+          : (entry.prompt as Record<string, unknown>)?.message as string;
+
+        // Extract AI response
+        const aiResponse = typeof entry.response === 'string'
+          ? entry.response
+          : (entry.response as Record<string, unknown>)?.text as string;
+
+        // Get user name from the joined users table
+        const userName = (entry.users as { name: string })?.name || 'Unknown User';
+
+        if (userMessage) {
+          // Add user message
+          messages.push({
+            id: `${entry.id}-user`,
+            message: userMessage,
+            response: null,
+            created_at: entry.created_at,
+            user_id: entry.user_id,
+            user_name: userName,
+            is_ai: false
+          });
+
+          // Add AI response if it exists
+          if (aiResponse) {
+            messages.push({
+              id: `${entry.id}-ai`,
+              message: aiResponse,
+              response: null,
+              created_at: entry.created_at,
+              user_id: 'ai',
+              user_name: 'AI PBL Tutor',
+              is_ai: true
+            });
+          }
+        }
+      }
+    }
+
+    // Reverse to show oldest first (since we fetched newest first for pagination)
+    messages.reverse();
+
+    return createSuccessResponse(messages);
+
+  } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('AI tutor history fetch error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
+    // Handle unexpected error types
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected AI tutor history fetch error:', error);
+    return createErrorResponse(`Failed to load conversation history: ${errorMessage}`);
+  }
+}

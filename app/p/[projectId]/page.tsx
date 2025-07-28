@@ -1,7 +1,8 @@
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { getAuthenticatedUser } from "@/lib/auth/user-utils";
+import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 import { LearningGoalEditor } from "@/components/pblab/project/learning-goal-editor";
+import { AiTutorChat } from "@/components/pblab/ai/ai-tutor-chat";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Database } from "@/lib/db.types";
@@ -140,81 +141,92 @@ export default async function ProjectWorkspace({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Project Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{project.problem.title}</h1>
-          <p className="text-muted-foreground">
-            Team: {project.team.name} • Course: {project.team.course.name}
-          </p>
+    <div className="flex gap-6">
+      {/* Main Content */}
+      <div className="flex-1 space-y-6">
+        {/* Project Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{project.problem.title}</h1>
+            <p className="text-muted-foreground">
+              Team: {project.team.name} • Course: {project.team.course.name}
+            </p>
+          </div>
+          <Badge variant={getPhaseVariant(project.phase)} className="capitalize">
+            {project.phase} Phase
+          </Badge>
         </div>
-        <Badge variant={getPhaseVariant(project.phase)} className="capitalize">
-          {project.phase} Phase
-        </Badge>
-      </div>
 
-      {/* Problem Description */}
-      {project.problem.description && (
+        {/* Problem Description */}
+        {project.problem.description && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Problem Description</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none">
+                {project.problem.description}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Phase-specific Content */}
         <Card>
           <CardHeader>
-            <CardTitle>Problem Description</CardTitle>
+            <CardTitle className="capitalize">{project.phase} Phase</CardTitle>
+            <CardDescription>
+              {getPhaseDescription(project.phase)}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm max-w-none">
-              {project.problem.description}
-            </div>
+            {project.phase === 'pre' ? (
+              // Learning Goal Editor (only in pre phase)
+              <LearningGoalEditor 
+                projectId={project.id}
+                initialGoals={project.learning_goals}
+              />
+            ) : (
+              // Other phase content (placeholder for now)
+              <div className="space-y-4">
+                {project.phase === 'research' && (
+                  <p className="text-muted-foreground">
+                    Research phase components will be implemented in Step 26.
+                  </p>
+                )}
+                {project.phase === 'post' && (
+                  <p className="text-muted-foreground">
+                    Post-discussion and report submission components will be implemented in Step 26.
+                  </p>
+                )}
+                {project.phase === 'closed' && (
+                  <p className="text-muted-foreground">
+                    This project has been completed and assessed.
+                  </p>
+                )}
+                
+                {/* Show learning goals if they exist (read-only in non-pre phases) */}
+                {project.learning_goals && (
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium mb-2">Learning Goals</h4>
+                    <div className="bg-muted p-4 rounded-md">
+                      <p className="text-sm whitespace-pre-wrap">{project.learning_goals}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
-      )}
+      </div>
 
-      {/* Phase-specific Content */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="capitalize">{project.phase} Phase</CardTitle>
-          <CardDescription>
-            {getPhaseDescription(project.phase)}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {project.phase === 'pre' ? (
-            // Learning Goal Editor (only in pre phase)
-            <LearningGoalEditor 
-              projectId={project.id}
-              initialGoals={project.learning_goals}
-            />
-          ) : (
-            // Other phase content (placeholder for now)
-            <div className="space-y-4">
-              {project.phase === 'research' && (
-                <p className="text-muted-foreground">
-                  Research phase components will be implemented in Step 26.
-                </p>
-              )}
-              {project.phase === 'post' && (
-                <p className="text-muted-foreground">
-                  Post-discussion and report submission components will be implemented in Step 26.
-                </p>
-              )}
-              {project.phase === 'closed' && (
-                <p className="text-muted-foreground">
-                  This project has been completed and assessed.
-                </p>
-              )}
-              
-              {/* Show learning goals if they exist (read-only in non-pre phases) */}
-              {project.learning_goals && (
-                <div className="mt-6">
-                  <h4 className="text-sm font-medium mb-2">Learning Goals</h4>
-                  <div className="bg-muted p-4 rounded-md">
-                    <p className="text-sm whitespace-pre-wrap">{project.learning_goals}</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* AI Tutor Chat Sidebar */}
+      <div className="flex-shrink-0">
+        <AiTutorChat 
+          projectId={project.id}
+          className="sticky top-6"
+        />
+      </div>
     </div>
   );
 }

@@ -273,17 +273,55 @@ During Step 21, identified and implemented missing invite system components:
   - Properly typed with TypeScript interfaces from notifications actions
   - Client-side navigation using Next.js useRouter hook
 
-[ ] Step 24: IMPORTANT: Implement Project Workspace with Learning Goal Editor
+[x] Step 24: IMPORTANT: Implement Project Workspace with Learning Goal Editor
 **Task**: Create the main project workspace page at `app/p/[projectId]/page.tsx`. Implement the `<LearningGoalEditor />` component (`components/pblab/project/learning-goal-editor.tsx`) and display it when the project is in the 'pre' phase. Wire its "Save" button to the `updateProjectLearningGoals` action and its "AI Suggestions" button to the `/api/ai/suggest-goals` API route.
 **Suggested Files for Context**: `lib/actions/projects.ts`, `app/api/ai/suggest-goals/route.ts`, `lib/db.types.ts`
 **Step Dependencies**: Step 15, Step 17
 **User Instructions**: None
 
-[ ] Step 25: IMPORTANT: Update AI Tutor Chat UI for Shared History
+[x] Step 25: IMPORTANT: Update AI Tutor Chat UI for Shared History
 **Task**: Update the `<AiTutorChat />` component (`components/pblab/ai/ai-tutor-chat.tsx`). It should now fetch the full, shared conversation history for the project on load and render it. Ensure the UI makes it clear that the chat is a shared resource for the team. The form submission will continue to use the updated `/api/ai/tutor` endpoint.
 **Suggested Files for Context**: `components/pblab/ai/ai-tutor-chat.tsx`, `app/api/ai/tutor/route.ts`
 **Step Dependencies**: Step 18
 **User Instructions**: None
+**Implementation Notes**:
+✅ What We Built:
+
+  1. **Server Action for History Fetching** (`lib/actions/ai.ts`):
+     - Added `getAiTutorHistory()` function with pagination (10 messages per chunk)
+     - Includes user information and proper authorization checks
+     - Returns formatted conversation data with user names and timestamps
+     - Handles both user messages and AI responses with proper attribution
+
+  2. **AI Tutor Chat Component** (`components/pblab/ai/ai-tutor-chat.tsx`):
+     - Collapsible right sidebar design with "Team Chat with AI PBL Tutor" title
+     - Fetches and displays shared conversation history on load
+     - Supports progressive loading with "Load older messages" button
+     - Shows user identification for each message (team member names)
+     - Clear visual distinction between user messages and AI responses
+     - Real-time message sending with form submission to `/api/ai/tutor` endpoint
+
+  3. **Project Workspace Integration** (`app/p/[projectId]/page.tsx`):
+     - Added AI Tutor Chat as sticky right sidebar for all project phases
+     - Maintains responsive two-column layout (main content + chat sidebar)
+     - Available in all project phases (pre, research, post, closed) as requested
+
+  ✅ Key Features Implemented:
+  - **Shared Team History**: Conversation history is fetched from database and shared across all team members
+  - **User Attribution**: Each message shows which team member sent it with proper user names
+  - **Pagination**: Loads last 10 messages initially, with "Load older messages" for 10 more at a time
+  - **Collapsible UI**: Can collapse to save screen space, shows as small icon when collapsed
+  - **Visual Design**: AI responses clearly marked with bot icon and blue styling
+  - **Real-time Updates**: New messages refresh the conversation history
+  - **Error Handling**: Graceful handling of network errors and loading states
+
+  ✅ Technical Implementation:
+  - Uses discriminated union types for type-safe server action responses
+  - Follows existing code patterns and shadcn/ui component library
+  - Proper TypeScript typing throughout with interfaces for conversation messages
+  - Client-side state management with React hooks
+  - Integration with existing AI tutor API endpoint maintaining conversation context
+  - Responsive design that works on both desktop and mobile
 
 [ ] Step 26: Implement Remaining Project Workspace Components
 **Task**: On the project page (`app/p/[projectId]/page.tsx`), implement the remaining components for the core workflow: `<ArtifactUploader />`, `<ArtifactCard />`, and `<CommentThread />`. Wire up the comment form to the `createComment` server action, which now handles user-selection based @mentions. Include a mention selector component that allows users to select from available team members and educators for the project.
