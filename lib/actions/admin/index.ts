@@ -6,10 +6,14 @@ export {
   createUser,
   updateUserRole,
   deleteUser,
+  generateUserInviteToken,
+  verifyUserInviteToken,
   type UserWithDetails,
   type CreateUserParams,
   type UpdateUserRoleParams,
   type DeleteUserParams,
+  type GenerateUserInviteParams,
+  type UserInviteTokenPayload,
 } from './users';
 
 // Team management

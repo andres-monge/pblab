@@ -1,9 +1,11 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import type { Database } from "@/lib/db.types";
 import { revalidatePath } from "next/cache";
 import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
+import jwt from "jsonwebtoken";
 import {
   validateRequiredString,
   validateEmail,
@@ -14,10 +16,12 @@ import {
   QueryResult,
   CreateResult,
   UpdateResult,
+  TokenResult,
   createSuccessResponse,
   createIdResponse,
   createMessageResponse,
-  createErrorResponse
+  createErrorResponse,
+  createTokenResponse
 } from "@/lib/shared/action-types";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
@@ -65,6 +69,34 @@ export interface UpdateUserRoleParams {
 export interface DeleteUserParams {
   /** ID of the user to delete */
   userId: string;
+}
+
+/**
+ * Parameters for generating a user invite token
+ */
+export interface GenerateUserInviteParams {
+  /** User's email address */
+  email: string;
+  /** User's full name */
+  name: string;
+  /** Role to assign to the user */
+  role: UserRole;
+}
+
+/**
+ * Decoded JWT token payload for user invites
+ */
+export interface UserInviteTokenPayload {
+  /** User's email address */
+  email: string;
+  /** User's full name */
+  name: string;
+  /** Role to assign to the user */
+  role: UserRole;
+  /** Token expiration timestamp */
+  exp: number;
+  /** Token issued at timestamp */
+  iat: number;
 }
 
 /**
@@ -153,8 +185,9 @@ export async function createUser(params: CreateUserParams): Promise<CreateResult
       return createErrorResponse('A user with this email already exists');
     }
 
-    // Create user in Supabase Auth
-    const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    // Create user in Supabase Auth using service role client
+    const serviceSupabase = createServiceClient();
+    const { data: authUser, error: authError } = await serviceSupabase.auth.admin.createUser({
       email: validatedEmail,
       password: validatedPassword,
       email_confirm: true, // Auto-confirm email for admin-created users
@@ -169,7 +202,7 @@ export async function createUser(params: CreateUserParams): Promise<CreateResult
       throw new Error(`Failed to create user account: ${authError?.message || 'Unknown error'}`);
     }
 
-    // Create user in public.users table
+    // Create user in public.users table using service role client to bypass RLS
     const userData: UserInsert = {
       id: authUser.user.id,
       email: validatedEmail,
@@ -177,7 +210,7 @@ export async function createUser(params: CreateUserParams): Promise<CreateResult
       role: validatedRole,
     };
 
-    const { data: createdUser, error: createError } = await supabase
+    const { data: createdUser, error: createError } = await serviceSupabase
       .from('users')
       .insert(userData)
       .select('id')
@@ -186,7 +219,7 @@ export async function createUser(params: CreateUserParams): Promise<CreateResult
     if (createError || !createdUser) {
       console.error('Failed to create user record:', createError);
       // Clean up auth user if public user creation fails
-      await supabase.auth.admin.deleteUser(authUser.user.id);
+      await serviceSupabase.auth.admin.deleteUser(authUser.user.id);
       throw new Error(`Failed to create user record: ${createError?.message || 'Unknown error'}`);
     }
 
@@ -264,6 +297,120 @@ export async function updateUserRole(params: UpdateUserRoleParams): Promise<Upda
 }
 
 /**
+ * Generate an invite token for a new user
+ * 
+ * Creates a JWT token that can be used to invite a user with a specific role.
+ * The token contains user details and expires in 7 days.
+ * Only accessible by admin users.
+ * 
+ * @param params - User invite parameters
+ * @returns Promise resolving to TokenResult with invite token or error
+ */
+export async function generateUserInviteToken(params: GenerateUserInviteParams): Promise<TokenResult> {
+  const { email, name, role } = params;
+
+  // Validate required parameters
+  const validatedEmail = validateEmail(email);
+  const validatedName = validateRequiredString(name, 'Name');
+  const validatedRole = validateEnum(role, 'Role', ['student', 'educator', 'admin'] as const);
+
+  try {
+    // Verify admin permissions
+    await requireAdminPermissions();
+    
+    const supabase = await createClient();
+
+    // Check if user already exists
+    const { data: existingUser, error: checkError } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', validatedEmail)
+      .single();
+
+    if (checkError && checkError.code !== 'PGRST116') {
+      // PGRST116 is "not found" which is expected if user doesn't exist
+      console.error('Failed to check existing user:', checkError);
+      throw new Error(`Failed to check existing user: ${checkError.message}`);
+    }
+
+    if (existingUser) {
+      return createErrorResponse('A user with this email already exists');
+    }
+
+    // Get JWT secret from environment
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is not configured');
+    }
+
+    // Create token payload
+    const payload: UserInviteTokenPayload = {
+      email: validatedEmail,
+      name: validatedName,
+      role: validatedRole,
+      exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60), // 7 days from now
+      iat: Math.floor(Date.now() / 1000),
+    };
+
+    // Generate JWT token
+    const token = jwt.sign(payload, jwtSecret);
+
+    return createTokenResponse(token);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Error generating invite token: ${errorMessage}`);
+  }
+}
+
+/**
+ * Verify a user invite token
+ * 
+ * Validates and decodes a user invite token to extract user details.
+ * 
+ * @param token - The JWT token to verify
+ * @returns Promise resolving to QueryResult with user invite data or error
+ */
+export async function verifyUserInviteToken(token: string): Promise<QueryResult<UserInviteTokenPayload>> {
+  if (!token || typeof token !== 'string') {
+    return createErrorResponse('Token is required and must be a valid string');
+  }
+
+  try {
+    // Get JWT secret from environment
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET environment variable is not configured');
+    }
+
+    // Verify and decode token
+    const decoded = jwt.verify(token, jwtSecret) as UserInviteTokenPayload;
+
+    // Additional validation
+    const validatedEmail = validateEmail(decoded.email);
+    const validatedName = validateRequiredString(decoded.name, 'Name');
+    const validatedRole = validateEnum(decoded.role, 'Role', ['student', 'educator', 'admin'] as const);
+
+    return createSuccessResponse({
+      email: validatedEmail,
+      name: validatedName,
+      role: validatedRole,
+      exp: decoded.exp,
+      iat: decoded.iat,
+    });
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      return createErrorResponse('Invalid invite token');
+    }
+    if (error instanceof jwt.TokenExpiredError) {
+      return createErrorResponse('Invite token has expired');
+    }
+    
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Error verifying invite token: ${errorMessage}`);
+  }
+}
+
+/**
  * Delete a user from the system
  * 
  * Removes a user account completely. Database constraints will handle
@@ -302,7 +449,8 @@ export async function deleteUser(params: DeleteUserParams): Promise<UpdateResult
     }
 
     // Delete user from auth (this will cascade to public.users via trigger)
-    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(validatedUserId);
+    const serviceSupabase = createServiceClient();
+    const { error: authDeleteError } = await serviceSupabase.auth.admin.deleteUser(validatedUserId);
 
     if (authDeleteError) {
       console.error('Failed to delete auth user:', authDeleteError);

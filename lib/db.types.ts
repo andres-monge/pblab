@@ -556,6 +556,54 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_notification_insert_policies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          policyname: string
+          permissive: string
+          cmd: string
+          roles: string[]
+          with_check: string
+        }[]
+      }
+      get_raw_notification_policies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          polname: string
+          polcmd: string
+          mode: string
+          roles: unknown[]
+          with_check: string
+        }[]
+      }
+      inspect_notification_policies: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          policy_name: string
+          policy_type: string
+          command: string
+          roles: string[]
+          with_check_clause: string
+          using_clause: string
+          permissive: string
+        }[]
+      }
+      inspect_table_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          table_name: string
+          rls_enabled: boolean
+          force_rls: boolean
+        }[]
+      }
+      test_without_rls: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
+      whoami: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
     }
     Enums: {
       assessment_status: "pending_review" | "final"

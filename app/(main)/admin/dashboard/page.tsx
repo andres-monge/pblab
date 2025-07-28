@@ -20,9 +20,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
   DataTable, 
-  CreateUserModal, 
+  InviteUserModal, 
   EditUserModal, 
   CreateTeamModal, 
+  EditTeamModal,
   CreateCourseModal, 
   DeleteConfirmationModal,
   type TableColumn,
@@ -41,6 +42,7 @@ export default function AdminDashboard() {
 
   // Modal state
   const [editUser, setEditUser] = useState<UserWithDetails | null>(null);
+  const [editTeam, setEditTeam] = useState<TeamWithDetails | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
     type: 'user' | 'team' | 'course';
     item: UserWithDetails | TeamWithDetails | CourseWithDetails;
@@ -209,6 +211,11 @@ export default function AdminDashboard() {
 
   const teamActions: TableAction<TeamWithDetails>[] = [
     {
+      label: "Edit",
+      onClick: (team) => setEditTeam(team),
+      variant: "outline",
+    },
+    {
       label: "Delete",
       onClick: (team) => setDeleteConfirmation({ type: 'team', item: team }),
       variant: "destructive",
@@ -354,7 +361,7 @@ export default function AdminDashboard() {
         <TabsContent value="users" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">User Management</h2>
-            <CreateUserModal onSuccess={loadAllData} />
+            <InviteUserModal onSuccess={loadAllData} />
           </div>
           <DataTable
             data={users}
@@ -396,6 +403,13 @@ export default function AdminDashboard() {
         user={editUser}
         open={!!editUser}
         onOpenChange={(open) => !open && setEditUser(null)}
+        onSuccess={loadAllData}
+      />
+
+      <EditTeamModal
+        team={editTeam}
+        open={!!editTeam}
+        onOpenChange={(open) => !open && setEditTeam(null)}
         onSuccess={loadAllData}
       />
 

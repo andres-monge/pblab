@@ -6,26 +6,27 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { createUser, type CreateUserParams } from "@/lib/actions/admin";
+import { generateUserInviteToken, type GenerateUserInviteParams } from "@/lib/actions/admin";
 import type { Database } from "@/lib/db.types";
 
 type UserRole = Database["public"]["Enums"]["user_role"];
 
-interface CreateUserModalProps {
+interface InviteUserModalProps {
   onSuccess?: () => void;
 }
 
-export function CreateUserModal({ onSuccess }: CreateUserModalProps) {
+export function InviteUserModal({ onSuccess }: InviteUserModalProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  const [formData, setFormData] = useState<CreateUserParams>({
+  const [formData, setFormData] = useState<GenerateUserInviteParams>({
     name: "",
     email: "",
     role: "student",
-    password: "",
   });
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,11 +34,12 @@ export function CreateUserModal({ onSuccess }: CreateUserModalProps) {
     setError(null);
 
     try {
-      const result = await createUser(formData);
+      const result = await generateUserInviteToken(formData);
       
       if (result.success) {
-        setOpen(false);
-        setFormData({ name: "", email: "", role: "student", password: "" });
+        const baseUrl = window.location.origin;
+        const inviteUrl = `${baseUrl}/invite?token=${encodeURIComponent(result.token)}`;
+        setInviteLink(inviteUrl);
         onSuccess?.();
       } else {
         setError(result.error);
@@ -54,7 +56,21 @@ export function CreateUserModal({ onSuccess }: CreateUserModalProps) {
       setOpen(newOpen);
       if (!newOpen) {
         setError(null);
-        setFormData({ name: "", email: "", role: "student", password: "" });
+        setFormData({ name: "", email: "", role: "student" });
+        setInviteLink(null);
+        setCopied(false);
+      }
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (inviteLink) {
+      try {
+        await navigator.clipboard.writeText(inviteLink);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy link:', err);
       }
     }
   };
@@ -62,11 +78,11 @@ export function CreateUserModal({ onSuccess }: CreateUserModalProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
-        <Button>Create User</Button>
+        <Button>Invite User</Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Create New User</DialogTitle>
+          <DialogTitle>{inviteLink ? 'Invite Link Generated' : 'Invite New User'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
@@ -113,22 +129,36 @@ export function CreateUserModal({ onSuccess }: CreateUserModalProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Initial Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              placeholder="Enter initial password"
-              required
-              disabled={loading}
-              minLength={6}
-            />
-            <p className="text-xs text-muted-foreground">
-              Minimum 6 characters. User can change this after first login.
-            </p>
-          </div>
+          {inviteLink && (
+            <div className="space-y-3 p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <p className="text-sm font-medium text-green-800">Invite link generated successfully!</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invite-link">Share this link with the user</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="invite-link"
+                    value={inviteLink}
+                    readOnly
+                    className="bg-white"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleCopyLink}
+                    variant={copied ? "default" : "outline"}
+                  >
+                    {copied ? "Copied!" : "Copy"}
+                  </Button>
+                </div>
+                <p className="text-xs text-green-700">
+                  This link expires in 7 days. The user will create their own password during signup.
+                </p>
+              </div>
+            </div>
+          )}
 
           {error && (
             <div className="text-sm text-destructive bg-destructive/10 p-3 rounded">
@@ -143,11 +173,13 @@ export function CreateUserModal({ onSuccess }: CreateUserModalProps) {
               onClick={() => setOpen(false)}
               disabled={loading}
             >
-              Cancel
+              {inviteLink ? "Close" : "Cancel"}
             </Button>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Creating..." : "Create User"}
-            </Button>
+            {!inviteLink && (
+              <Button type="submit" disabled={loading}>
+                {loading ? "Generating..." : "Generate Invite"}
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>
