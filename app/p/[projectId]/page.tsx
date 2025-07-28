@@ -1,0 +1,220 @@
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getAuthenticatedUser } from "@/lib/auth/user-utils";
+import { LearningGoalEditor } from "@/components/pblab/project/learning-goal-editor";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Database } from "@/lib/db.types";
+
+type ProjectPhase = Database["public"]["Enums"]["project_phase"];
+
+interface ProjectData {
+  id: string;
+  phase: ProjectPhase;
+  learning_goals: string | null;
+  team_id: string;
+  problem: {
+    id: string;
+    title: string;
+    description: string | null;
+  };
+  team: {
+    id: string;
+    name: string;
+    course: {
+      id: string;
+      name: string;
+    };
+  };
+}
+
+async function getProjectData(projectId: string, userId: string, userRole: string): Promise<ProjectData | null> {
+  const supabase = await createClient();
+
+  // Fetch project with authorization check via RLS
+  const { data: project, error } = await supabase
+    .from('projects')
+    .select(`
+      id,
+      phase,
+      learning_goals,
+      team_id,
+      problem:problems!inner (
+        id,
+        title,
+        description
+      ),
+      team:teams!inner (
+        id,
+        name,
+        course:courses!inner (
+          id,
+          name
+        )
+      )
+    `)
+    .eq('id', projectId)
+    .single();
+
+  if (error || !project) {
+    return null;
+  }
+
+  // Additional authorization check for educators
+  if (userRole === 'educator') {
+    // Educators can access projects in their courses
+    // RLS should handle this, but we can add explicit check if needed
+    const { data: educatorCourse } = await supabase
+      .from('problems')
+      .select('course_id')
+      .eq('id', project.problem.id)
+      .single();
+
+    if (!educatorCourse) {
+      return null;
+    }
+  } else if (userRole === 'student') {
+    // Students can only access projects for teams they're members of
+    const { data: teamMember } = await supabase
+      .from('teams_users')
+      .select('team_id')
+      .eq('team_id', project.team_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (!teamMember) {
+      return null;
+    }
+  }
+  // Admins can access any project
+
+  return project as ProjectData;
+}
+
+function getPhaseDescription(phase: ProjectPhase): string {
+  switch (phase) {
+    case 'pre':
+      return 'Define your learning goals and prepare for the research phase.';
+    case 'research':
+      return 'Conduct research, gather artifacts, and collaborate with your team.';
+    case 'post':
+      return 'Synthesize your findings and prepare your final report.';
+    case 'closed':
+      return 'Project completed and assessed.';
+    default:
+      return 'Project in progress.';
+  }
+}
+
+function getPhaseVariant(phase: ProjectPhase): "default" | "secondary" | "destructive" | "outline" {
+  switch (phase) {
+    case 'pre':
+      return 'secondary';
+    case 'research':
+      return 'default';
+    case 'post':
+      return 'outline';
+    case 'closed':
+      return 'destructive';
+    default:
+      return 'outline';
+  }
+}
+
+export default async function ProjectWorkspace({ 
+  params 
+}: { 
+  params: Promise<{ projectId: string }> 
+}) {
+  // Get authenticated user
+  const user = await getAuthenticatedUser();
+  
+  // Await params in Next.js 15
+  const { projectId } = await params;
+  
+  // Fetch project data with authorization
+  const project = await getProjectData(projectId, user.id, user.role);
+  
+  if (!project) {
+    notFound();
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Project Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{project.problem.title}</h1>
+          <p className="text-muted-foreground">
+            Team: {project.team.name} • Course: {project.team.course.name}
+          </p>
+        </div>
+        <Badge variant={getPhaseVariant(project.phase)} className="capitalize">
+          {project.phase} Phase
+        </Badge>
+      </div>
+
+      {/* Problem Description */}
+      {project.problem.description && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Problem Description</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="prose prose-sm max-w-none">
+              {project.problem.description}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Phase-specific Content */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="capitalize">{project.phase} Phase</CardTitle>
+          <CardDescription>
+            {getPhaseDescription(project.phase)}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {project.phase === 'pre' ? (
+            // Learning Goal Editor (only in pre phase)
+            <LearningGoalEditor 
+              projectId={project.id}
+              initialGoals={project.learning_goals}
+            />
+          ) : (
+            // Other phase content (placeholder for now)
+            <div className="space-y-4">
+              {project.phase === 'research' && (
+                <p className="text-muted-foreground">
+                  Research phase components will be implemented in Step 26.
+                </p>
+              )}
+              {project.phase === 'post' && (
+                <p className="text-muted-foreground">
+                  Post-discussion and report submission components will be implemented in Step 26.
+                </p>
+              )}
+              {project.phase === 'closed' && (
+                <p className="text-muted-foreground">
+                  This project has been completed and assessed.
+                </p>
+              )}
+              
+              {/* Show learning goals if they exist (read-only in non-pre phases) */}
+              {project.learning_goals && (
+                <div className="mt-6">
+                  <h4 className="text-sm font-medium mb-2">Learning Goals</h4>
+                  <div className="bg-muted p-4 rounded-md">
+                    <p className="text-sm whitespace-pre-wrap">{project.learning_goals}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

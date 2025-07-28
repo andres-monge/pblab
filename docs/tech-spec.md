@@ -290,7 +290,7 @@ The project will be built upon the provided Next.js starter template. New direct
     1. Navigate to `/admin/dashboard`.
     2. **User Management:**
         - Display all users in a data table with columns for name, email, and role
-        - "Create User" button opens modal form (name, email, role, initial password)
+        - "Invite User" button sends invite link to new user.
         - "Edit" action allows changing user roles only (not names/emails)
         - "Delete" action removes users with confirmation dialog
     3. **Team Management:**

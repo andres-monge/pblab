@@ -434,12 +434,12 @@ async function createSampleProjects(problemIds: string[], teamIds: string[]) {
   console.log('🚀 Creating sample projects...');
   
   const projects: ProjectInsert[] = [
-    // Team Alpha - Outbreak Simulator
+    // Team Alpha - Outbreak Simulator (pre phase for testing learning goals)
     {
       id: '00000000-0000-0000-0000-000000000500',
       problem_id: problemIds[0],
       team_id: teamIds[0],
-      phase: 'research' // As requested, both projects in research phase
+      phase: 'pre' // Pre phase for testing learning goal editor
     },
     // Team Alpha - EcoBalance
     {
@@ -448,12 +448,12 @@ async function createSampleProjects(problemIds: string[], teamIds: string[]) {
       team_id: teamIds[0],
       phase: 'research'
     },
-    // Team Beta - Outbreak Simulator
+    // Team Beta - Outbreak Simulator (pre phase for testing learning goals)
     {
       id: '00000000-0000-0000-0000-000000000502',
       problem_id: problemIds[0],
       team_id: teamIds[1],
-      phase: 'research'
+      phase: 'pre' // Pre phase for testing learning goal editor
     },
     // Team Beta - EcoBalance
     {
