@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { logAiUsage } from "@/lib/actions/ai";
 import { NextRequest, NextResponse } from "next/server";
 
+// Force Node.js runtime to support Google GenAI package
+export const runtime = 'nodejs';
+
 /**
  * POST /api/ai/tutor
  * 
@@ -144,7 +147,7 @@ Remember: This is a shared conversation for the entire project team. Previous me
       contents: conversationContents,
       config: {
         temperature: 0.7,           // Balanced creativity for educational responses
-        maxOutputTokens: 1000,      // Reasonable response length
+        maxOutputTokens: 65000,      // Generous limit for detailed tutoring responses
         candidateCount: 1,          // Single response
         systemInstruction: {
           parts: [{ text: systemInstruction }]

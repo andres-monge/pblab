@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { logAiUsage } from "@/lib/actions/ai";
 import { NextRequest, NextResponse } from "next/server";
 
+// Force Node.js runtime to support Google GenAI package
+export const runtime = 'nodejs';
+
 /**
  * POST /api/ai/suggest-goals
  * 
@@ -101,7 +104,7 @@ Learning Goals:`;
       contents: prompt,
       config: {
         temperature: 0.7,           // Controls randomness (0.0-1.0, lower = more consistent)
-        maxOutputTokens: 1000,      // Limits response length
+        maxOutputTokens: 40000,      // Generous limit for detailed learning goals (within 65k limit)
         candidateCount: 1,          // Number of response variations
         responseMimeType: 'application/json',  // Encourages JSON format
         stopSequences: [']'],       // Stops generation after JSON array closes
@@ -109,10 +112,12 @@ Learning Goals:`;
     });
 
     // Extract the generated text
-    const generatedText = response.text;
+    const generatedText = response.text || response.candidates?.[0]?.content?.parts?.[0]?.text;
     
     if (!generatedText) {
-      throw new Error('No response generated from AI service');
+      const finishReason = response.candidates?.[0]?.finishReason;
+      console.error('❌ No text found. Finish reason:', finishReason);
+      throw new Error(`Gemini replied with finishReason=${finishReason || 'unknown'}`);
     }
 
     // Parse the response to extract the JSON array
