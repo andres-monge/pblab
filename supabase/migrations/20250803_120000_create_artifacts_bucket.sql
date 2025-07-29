@@ -4,21 +4,89 @@
 -- This migration sets up RLS policies for both storage.objects and notifications tables
 
 -- Fix notification INSERT policy to allow @mentions
--- The current policy only allows self-notifications, but for @mentions to work,
--- authenticated users need to create notifications for other users (recipients)
--- Note: We need to drop both the old policies that might conflict
+-- Replace conflicting RLS policies with a clean RPC function approach
+-- This solves the 42501 error by bypassing RLS for notification creation
+-- while maintaining security through function logic
+
+-- First, drop ALL conflicting INSERT policies that prevent @mentions
 DROP POLICY IF EXISTS notifications_insert_v1 ON public.notifications;
+DROP POLICY IF EXISTS notifications_insert_v2 ON public.notifications;
 DROP POLICY IF EXISTS "Users can create notifications" ON public.notifications;
 
-CREATE POLICY notifications_insert_v2
-  ON public.notifications
-  FOR INSERT
-  TO authenticated
-  WITH CHECK (
-    actor_id = auth.uid()
-    AND recipient_id IS NOT NULL
-    AND recipient_id != actor_id  -- Prevent self-mentions for cleaner UX
-  );
+-- Note: The set_notification_actor trigger from July 31st migration remains active
+-- It will automatically set actor_id = auth.uid() for direct inserts
+
+-- Create SECURITY DEFINER RPC function for creating mention notifications
+-- This bypasses RLS entirely while maintaining security through explicit checks
+CREATE OR REPLACE FUNCTION public.create_mention_notification(
+  _recipient_id uuid,
+  _comment_id uuid,
+  _reference_url text DEFAULT NULL
+) 
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  _notification_id uuid;
+  _comment_exists boolean;
+BEGIN
+  -- Validate input parameters
+  IF _recipient_id IS NULL OR _comment_id IS NULL THEN
+    RAISE EXCEPTION 'recipient_id and comment_id are required';
+  END IF;
+  
+  -- Security check: Don't allow self-mentions
+  IF _recipient_id = auth.uid() THEN
+    RAISE EXCEPTION 'Cannot mention yourself';
+  END IF;
+  
+  -- Verify the comment exists and user has access to it
+  SELECT EXISTS (
+    SELECT 1 
+    FROM comments c
+    JOIN artifacts a ON c.artifact_id = a.id
+    JOIN projects p ON a.project_id = p.id
+    JOIN teams_users tu ON p.team_id = tu.team_id
+    WHERE c.id = _comment_id
+    AND tu.user_id = auth.uid()
+  ) INTO _comment_exists;
+  
+  IF NOT _comment_exists THEN
+    RAISE EXCEPTION 'Comment not found or access denied';
+  END IF;
+  
+  -- Create the notification (actor_id will be set by existing trigger)
+  INSERT INTO notifications (
+    recipient_id, 
+    type,
+    reference_id,
+    reference_url,
+    is_read,
+    created_at
+  ) VALUES (
+    _recipient_id,
+    'mention_in_comment',
+    _comment_id,
+    _reference_url,
+    false,
+    now()
+  )
+  RETURNING id INTO _notification_id;
+  
+  RETURN _notification_id;
+END;
+$$;
+
+-- Grant execute permission to authenticated users
+GRANT EXECUTE ON FUNCTION public.create_mention_notification TO authenticated;
+
+-- Add helpful comment for future developers
+COMMENT ON FUNCTION public.create_mention_notification IS 
+'Creates a notification for @mentions in comments. Uses SECURITY DEFINER to bypass RLS 
+policies while maintaining security through explicit validation. Works with the existing
+set_notification_actor trigger to automatically set actor_id = auth.uid().';
 
 -- Allow authenticated users to see the artifacts bucket
 -- This fixes the "bucket not found" issue when using listBuckets() with authenticated users

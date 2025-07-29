@@ -221,7 +221,7 @@ export async function markNotificationAsRead(params: MarkNotificationAsReadParam
  * Create a new notification
  * 
  * Helper function for creating notifications (used by @mention functionality).
- * The actor_id will be set to the current authenticated user.
+ * Uses RPC function to bypass RLS conflicts while maintaining security.
  * 
  * @param params - Notification creation parameters  
  * @returns Promise resolving to CreateResult with notification ID or error
@@ -250,7 +250,29 @@ export async function createNotification(params: {
       return createErrorResponse('Cannot create notification for yourself');
     }
 
-    // Create the notification
+    // Special handling for mention_in_comment type - use RPC to bypass RLS
+    if (validatedType === 'mention_in_comment') {
+      const { data: notificationId, error: rpcError } = await supabase
+        .rpc('create_mention_notification', {
+          _recipient_id: validatedRecipientId,
+          _comment_id: validatedReferenceId,
+          _reference_url: referenceUrl || undefined
+        });
+
+      if (rpcError || !notificationId) {
+        console.error('Failed to create mention notification via RPC:', rpcError);
+        return createErrorResponse(`Failed to create mention notification: ${rpcError?.message || 'Unknown error'}`);
+      }
+
+      // Revalidate paths that might show notification counts for the recipient
+      revalidatePath('/dashboard');
+      revalidatePath('/student/dashboard');
+      revalidatePath('/educator/dashboard');
+
+      return createIdResponse(notificationId);
+    }
+
+    // For other notification types, use direct insert (if they exist in the future)
     const notificationData: NotificationInsert = {
       recipient_id: validatedRecipientId,
       actor_id: user.id,
