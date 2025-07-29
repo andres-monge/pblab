@@ -522,4 +522,282 @@ export async function updateProjectLearningGoals(params: UpdateProjectLearningGo
     console.error('Unexpected project learning goals update error:', error);
     return createErrorResponse(`Unexpected error updating project learning goals: ${errorMessage}`);
   }
+}
+
+/**
+ * Parameters for finalizing an assessment
+ */
+export interface FinalizeAssessmentParams {
+  /** ID of the project being assessed */
+  projectId: string;
+  /** Array of scores for each rubric criterion */
+  scores: Array<{
+    criterionId: string;
+    score: number;
+    justification: string;
+  }>;
+  /** Overall feedback for the project */
+  overallFeedback: string;
+}
+
+/**
+ * Finalize a project assessment
+ * 
+ * Saves the assessment scores, marks it as final, and closes the project.
+ * This action is only available to educators and permanently locks the project.
+ * 
+ * @param params - Assessment finalization parameters
+ * @returns Promise resolving to UpdateResult with success message or error
+ */
+export async function finalizeAssessment(params: FinalizeAssessmentParams): Promise<UpdateResult> {
+  const { projectId, scores, overallFeedback } = params;
+
+  // Validate required parameters
+  const validatedProjectId = validateProjectId(projectId);
+  const validatedFeedback = validateRequiredString(overallFeedback, 'Overall feedback');
+  
+  // Validate scores array
+  if (!Array.isArray(scores) || scores.length === 0) {
+    return createErrorResponse('At least one score must be provided');
+  }
+
+  // Validate each score
+  for (const score of scores) {
+    if (!score.criterionId || typeof score.criterionId !== 'string') {
+      return createErrorResponse('Each score must have a valid criterion ID');
+    }
+    if (typeof score.score !== 'number' || score.score < 0) {
+      return createErrorResponse('Each score must be a non-negative number');
+    }
+    if (!score.justification || typeof score.justification !== 'string') {
+      return createErrorResponse('Each score must have a justification');
+    }
+  }
+
+  try {
+    // Verify user authentication and permissions
+    const user = await getAuthenticatedUser();
+    if (user.role !== 'educator' && user.role !== 'admin') {
+      throw new BusinessLogicError(
+        'insufficient_permissions',
+        'Only educators can finalize assessments',
+        { userRole: user.role }
+      );
+    }
+
+    const supabase = await createClient();
+
+    // Verify project exists and is in post phase
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        phase,
+        problem:problems!inner (
+          id,
+          rubrics (
+            id,
+            rubric_criteria (
+              id,
+              max_score
+            )
+          )
+        )
+      `)
+      .eq('id', validatedProjectId)
+      .single();
+
+    if (projectError || !project) {
+      throw new DatabaseError(
+        'verify_project',
+        projectError?.message || 'Project not found',
+        projectError ? new Error(projectError.message) : undefined,
+        { projectId: validatedProjectId }
+      );
+    }
+
+    if (project.phase !== 'post') {
+      throw new BusinessLogicError(
+        'invalid_project_phase',
+        'Project must be in post-discussion phase to finalize assessment',
+        { currentPhase: project.phase, projectId: validatedProjectId }
+      );
+    }
+
+    // Get rubric criteria for validation
+    const rubrics = project.problem.rubrics;
+    if (!rubrics || !Array.isArray(rubrics) || rubrics.length === 0) {
+      throw new BusinessLogicError(
+        'no_rubric',
+        'No rubric found for this project',
+        { projectId: validatedProjectId }
+      );
+    }
+
+    const rubric = rubrics[0];
+    if (!rubric.rubric_criteria || !Array.isArray(rubric.rubric_criteria)) {
+      throw new BusinessLogicError(
+        'no_rubric_criteria',
+        'No rubric criteria found for this project',
+        { projectId: validatedProjectId }
+      );
+    }
+
+    // Create a map of valid criteria IDs to max scores
+    const criteriaMap = new Map<string, number>(
+      rubric.rubric_criteria.map((c: { id: string; max_score: number }) => [c.id, c.max_score])
+    );
+
+    // Validate all scores are for valid criteria and within range
+    for (const score of scores) {
+      const maxScore = criteriaMap.get(score.criterionId);
+      if (maxScore === undefined) {
+        throw new BusinessLogicError(
+          'invalid_criterion',
+          `Invalid criterion ID: ${score.criterionId}`,
+          { criterionId: score.criterionId, validCriteriaIds: Array.from(criteriaMap.keys()) }
+        );
+      }
+      if (score.score > maxScore) {
+        throw new BusinessLogicError(
+          'score_exceeds_max',
+          `Score ${score.score} exceeds maximum ${maxScore} for criterion`,
+          { criterionId: score.criterionId, score: score.score, maxScore }
+        );
+      }
+    }
+
+    // Start a database transaction
+    // First, check if there's an existing pending assessment
+    const { data: existingAssessment, error: existingError } = await supabase
+      .from('assessments')
+      .select('id')
+      .eq('project_id', validatedProjectId)
+      .eq('status', 'pending_review')
+      .single();
+
+    let assessmentId: string;
+
+    if (existingAssessment && !existingError) {
+      // Update existing assessment
+      assessmentId = existingAssessment.id;
+      
+      // Update assessment to final
+      const { error: updateError } = await supabase
+        .from('assessments')
+        .update({
+          status: 'final' as Database["public"]["Enums"]["assessment_status"],
+          overall_feedback: validatedFeedback,
+          assessor_id: user.id,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', assessmentId);
+
+      if (updateError) {
+        throw new DatabaseError(
+          'update_assessment',
+          updateError.message,
+          new Error(updateError.message),
+          { assessmentId }
+        );
+      }
+
+      // Delete existing scores to replace with new ones
+      const { error: deleteError } = await supabase
+        .from('assessment_scores')
+        .delete()
+        .eq('assessment_id', assessmentId);
+
+      if (deleteError) {
+        throw new DatabaseError(
+          'delete_existing_scores',
+          deleteError.message,
+          new Error(deleteError.message),
+          { assessmentId }
+        );
+      }
+    } else {
+      // Create new assessment
+      const { data: newAssessment, error: createError } = await supabase
+        .from('assessments')
+        .insert({
+          project_id: validatedProjectId,
+          assessor_id: user.id,
+          status: 'final' as Database["public"]["Enums"]["assessment_status"],
+          overall_feedback: validatedFeedback
+        })
+        .select('id')
+        .single();
+
+      if (createError || !newAssessment) {
+        throw new DatabaseError(
+          'create_assessment',
+          createError?.message || 'Failed to create assessment',
+          createError ? new Error(createError.message) : undefined,
+          { projectId: validatedProjectId }
+        );
+      }
+
+      assessmentId = newAssessment.id;
+    }
+
+    // Insert assessment scores
+    const scoresToInsert = scores.map(score => ({
+      assessment_id: assessmentId,
+      criterion_id: score.criterionId,
+      score: score.score,
+      justification: score.justification,
+      ai_generated: false // Educator has reviewed/edited
+    }));
+
+    const { error: scoresError } = await supabase
+      .from('assessment_scores')
+      .insert(scoresToInsert);
+
+    if (scoresError) {
+      throw new DatabaseError(
+        'insert_scores',
+        scoresError.message,
+        new Error(scoresError.message),
+        { assessmentId, scoresCount: scoresToInsert.length }
+      );
+    }
+
+    // Update project phase to closed
+    const { error: projectUpdateError } = await supabase
+      .from('projects')
+      .update({
+        phase: 'closed' as ProjectPhase,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', validatedProjectId);
+
+    if (projectUpdateError) {
+      throw new DatabaseError(
+        'close_project',
+        projectUpdateError.message,
+        new Error(projectUpdateError.message),
+        { projectId: validatedProjectId }
+      );
+    }
+
+    // Revalidate relevant paths
+    revalidatePath('/educator/dashboard');
+    revalidatePath('/student/dashboard');
+    revalidatePath('/dashboard');
+    revalidatePath(`/p/${validatedProjectId}`);
+
+    return createMessageResponse('Assessment finalized successfully. Project is now closed.');
+  } catch (error) {
+    // Handle structured errors and convert to user-friendly responses
+    if (isPBLabError(error)) {
+      console.error('Assessment finalization error:', getTechnicalDetails(error));
+      return createErrorResponse(getUserMessage(error));
+    }
+    
+    // Handle unexpected error types
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Unexpected assessment finalization error:', error);
+    return createErrorResponse(`Unexpected error finalizing assessment: ${errorMessage}`);
+  }
 } 
