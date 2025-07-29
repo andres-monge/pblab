@@ -87,7 +87,7 @@ enabled = true
 
 # Configure local storage buckets
 [storage.buckets.artifacts]
-public = false
+public = true
 file_size_limit = "10MiB"
 allowed_mime_types = [
   # Images
