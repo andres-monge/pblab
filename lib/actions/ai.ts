@@ -184,7 +184,7 @@ export async function getAiTutorHistory(params: GetAiTutorHistoryParams): Promis
       );
     }
 
-    // Fetch conversation history with user information
+    // Fetch conversation history with user information (newest first, then reverse for display)
     const { data: conversationData, error: conversationError } = await supabase
       .from('ai_usage')
       .select(`
@@ -241,7 +241,7 @@ export async function getAiTutorHistory(params: GetAiTutorHistoryParams): Promis
             is_ai: false
           });
 
-          // Add AI response if it exists
+          // Add AI response if it exists (same timestamp, will be sorted after user message)
           if (aiResponse) {
             messages.push({
               id: `${entry.id}-ai`,
@@ -257,10 +257,21 @@ export async function getAiTutorHistory(params: GetAiTutorHistoryParams): Promis
       }
     }
 
-    // Reverse to show oldest first (since we fetched newest first for pagination)
-    messages.reverse();
+    // Simple, bulletproof sorting: first by created_at, then by is_ai
+    // This ensures user messages always come before AI responses for same timestamp
+    const sortedMessages = [...messages].sort((a, b) => {
+      const timeA = new Date(a.created_at).getTime();
+      const timeB = new Date(b.created_at).getTime();
+      
+      // Earlier timestamps first
+      const timeDiff = timeA - timeB;
+      if (timeDiff !== 0) return timeDiff;
+      
+      // For same timestamp: user beats AI (false < true in JS)
+      return a.is_ai ? 1 : -1;
+    });
 
-    return createSuccessResponse(messages);
+    return createSuccessResponse(sortedMessages);
 
   } catch (error) {
     // Handle structured errors and convert to user-friendly responses

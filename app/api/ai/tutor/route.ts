@@ -163,8 +163,9 @@ Remember: This is a shared conversation for the entire project team. Previous me
     }
 
     // Log AI usage for analytics and audit trail
+    let newRowId: string | null = null;
     try {
-      await logAiUsage({
+      const logResult = await logAiUsage({
         userId: user.id,
         projectId: projectId,
         feature: 'tutor',
@@ -178,9 +179,35 @@ Remember: This is a shared conversation for the entire project team. Previous me
           context_included: conversationHistory ? conversationHistory.length : 0
         }
       });
+      
+      if (logResult.success) {
+        newRowId = logResult.id;
+      }
     } catch (logError) {
       // Log the error but don't fail the request
       console.error('Failed to log AI usage:', logError);
+    }
+
+    // Broadcast to team members that new AI usage was logged
+    try {
+      if (newRowId) {
+        // Use the same channel name as the client
+        const channelName = `project_${projectId}_ai_tutor`;
+        const channel = supabase.channel(channelName);
+        
+        await channel.subscribe();
+        channel.send({
+          type: 'broadcast',
+          event: 'new_ai_usage',
+          payload: { id: newRowId, projectId }
+        });
+        
+        // Clean up the channel
+        await channel.unsubscribe();
+      }
+    } catch (broadcastError) {
+      // Log the error but don't fail the request
+      console.error('Failed to broadcast new AI usage:', broadcastError);
     }
 
     // Return successful response

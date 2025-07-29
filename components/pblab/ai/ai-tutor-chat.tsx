@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, ChevronRight, Send, MessageCircle, User, Bot, RotateCcw } from "lucide-react";
 import { getAiTutorHistory, type AiConversationMessage } from "@/lib/actions/ai";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 interface AiTutorChatProps {
@@ -80,6 +81,68 @@ export function AiTutorChat({ projectId, className }: AiTutorChatProps) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
   }, [messages]);
+
+  // Helper function to refresh messages
+  const refreshMessages = useCallback(async () => {
+    try {
+      const result = await getAiTutorHistory({
+        projectId,
+        offset: 0,
+        limit: 10
+      });
+
+      if (result.success) {
+        const chatMessages: ChatMessage[] = result.data.map((msg: AiConversationMessage) => ({
+          id: msg.id,
+          content: msg.message,
+          isAi: msg.is_ai,
+          userName: msg.user_name,
+          timestamp: new Date(msg.created_at).toLocaleString()
+        }));
+        
+        setMessages(chatMessages);
+        setOffset(chatMessages.length);
+        setHasMoreMessages(chatMessages.length === 10);
+      }
+    } catch (err) {
+      console.error("Error refreshing messages:", err);
+    }
+  }, [projectId]);
+
+  // Supabase broadcast channel for real-time chat sharing
+  useEffect(() => {
+    const supabase = createClient();
+    
+    // Create unique channel name to avoid conflicts
+    const channelName = `project_${projectId}_ai_tutor`;
+    
+    // Subscribe to broadcast messages for this project
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'broadcast',
+        { event: 'new_ai_usage' },
+        ({ payload }) => {
+          // Only refresh if it's for our project
+          if (payload.projectId === projectId) {
+            refreshMessages();
+          }
+        }
+      )
+      .on(
+        'system',
+        { event: 'error' },
+        (error) => {
+          console.error('[RT] channel error:', error);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      channel.unsubscribe();
+      supabase.removeChannel(channel);
+    };
+  }, [projectId, refreshMessages]);
 
   const loadMessages = async (newOffset: number, isInitial: boolean = false) => {
     setIsLoading(true);
@@ -155,26 +218,8 @@ export function AiTutorChat({ projectId, className }: AiTutorChatProps) {
       const result = await response.json();
 
       if (result.success) {
-        // Reload the conversation to get the new messages
-        const refreshResult = await getAiTutorHistory({
-          projectId,
-          offset: 0,
-          limit: 10
-        });
-
-        if (refreshResult.success) {
-          const chatMessages: ChatMessage[] = refreshResult.data.map((msg: AiConversationMessage) => ({
-            id: msg.id,
-            content: msg.message,
-            isAi: msg.is_ai,
-            userName: msg.user_name,
-            timestamp: new Date(msg.created_at).toLocaleString()
-          }));
-
-          setMessages(chatMessages);
-          setOffset(chatMessages.length);
-          setHasMoreMessages(chatMessages.length === 10);
-        }
+        // Manually refresh to see the new response immediately
+        await refreshMessages();
       } else {
         setError(result.error || "Failed to send message");
         // Restore the message if it failed to send
@@ -189,19 +234,6 @@ export function AiTutorChat({ projectId, className }: AiTutorChatProps) {
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
-
-    if (diffInHours < 1) {
-      return "Just now";
-    } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)}h ago`;
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
 
   if (isCollapsed) {
     return (
@@ -308,9 +340,6 @@ export function AiTutorChat({ projectId, className }: AiTutorChatProps) {
                     <div className="flex items-center space-x-2 mb-1">
                       <span className="text-xs font-medium text-muted-foreground">
                         {message.userName}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatTimestamp(message.timestamp)}
                       </span>
                       {message.isAi && (
                         <Badge variant="secondary" className="text-xs px-1 py-0">
