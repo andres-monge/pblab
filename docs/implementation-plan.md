@@ -323,11 +323,30 @@ During Step 21, identified and implemented missing invite system components:
   - Integration with existing AI tutor API endpoint maintaining conversation context
   - Responsive design that works on both desktop and mobile
 
-[ ] Step 26: Implement Remaining Project Workspace Components
-**Task**: On the project page (`app/p/[projectId]/page.tsx`), implement the remaining components for the core workflow: `<ArtifactUploader />`, `<ArtifactCard />`, and `<CommentThread />`. Wire up the comment form to the `createComment` server action, which now handles user-selection based @mentions. Include a mention selector component that allows users to select from available team members and educators for the project.
-**Suggested Files for Context**: `lib/actions/artifacts/crud.ts`, `lib/actions/artifacts/comments.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`, `lib/security/file-validation.ts`
-**Step Dependencies**: Step 16, Step 24, Phase 4 Optimization completed
-**User Instructions**: Configure a "artifacts" bucket in Supabase Storage with appropriate RLS policies.
+[ ] Step 26: Implement Core Project Workspace Components (Artifacts & Comments)
+**Task**: Configure a "artifacts" bucket in Supabase Storage with appropriate RLS policies before starting. Ensure we are building and testing against our local DB. On the project page (`app/p/[projectId]/page.tsx`), implement the student-facing components for artifact management and collaboration. Build three key components: 1) `<ArtifactUploader />` component in `components/pblab/project/artifact-uploader.tsx` with support for both file uploads (via Supabase Storage signed URLs) and external link addition, 2) `<ArtifactCard />` component in `components/pblab/project/artifact-card.tsx` to display artifacts with metadata (title, type, uploader, timestamp), and 3) `<CommentThread />` component in `components/pblab/project/comment-thread.tsx` with user-selection @mention functionality. Wire the comment form to call the existing `createComment` server action with `mentionedUserIds` parameter. Include a mention selector that fetches available users via `getProjectMentionableUsers()` and displays them as selectable chips/tags. Integrate all three components into the project workspace layout.
+**Suggested Files for Context**: `lib/actions/artifacts/crud.ts`, `lib/actions/artifacts/comments.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`, `lib/security/file-validation.ts`, `components/pblab/notifications/notifications-indicator.tsx` (for UI patterns)
+**Step Dependencies**: Step 16 (mention system), Step 24 (project workspace), Phase 4 Optimization completed
+**User Instructions**: None
+**Implementation Notes**: 
+- Focus ONLY on student collaboration features - no educator assessment UI
+- Use existing server actions: `createArtifact()`, `createComment()`, `getProjectMentionableUsers()`
+- Follow established patterns from notifications component for dropdowns and user selection
+- File uploads should use Supabase Storage signed URL pattern from security module
+- Test artifact uploads, link additions, commenting, and @mention notifications
+
+[ ] Step 27: IMPORTANT: Implement AI-Assisted Rubric Assessment System
+**Task**: Create the educator-facing assessment workflow on the project page (`app/p/[projectId]/page.tsx`). Build the `<RubricEditor />` component in `components/pblab/educator/rubric-editor.tsx` that displays when an educator views a project in 'post' phase. The component should show the project's rubric criteria with editable score and justification fields. Implement three key interactions: 1) "Grade with AI" button that calls `POST /api/ai/assess` with the projectId, displays loading state, and populates the form with AI-generated scores/justifications, 2) "Regenerate" button that allows educators to provide feedback text and re-call the AI API for refined results, and 3) "Save & Finalize" button that calls a new server action `finalizeAssessment()` to save scores, set assessment status to 'final', update project phase to 'closed', and prevent further student edits. Display the final report URL prominently and show assessment status clearly.
+**Suggested Files for Context**: `app/api/ai/assess/route.ts`, `lib/actions/projects.ts`, `app/p/[projectId]/page.tsx`, `lib/db.types.ts`, `components/pblab/project/learning-goal-editor.tsx` (for form patterns)
+**Step Dependencies**: Step 26 (project workspace base), existing AI assessment API route, database schema with assessments tables
+**User Instructions**: None - API route should already exist from Phase 4
+**Implementation Notes**:
+- Build ONLY the educator assessment interface - no student artifact features
+- Create new server action: `finalizeAssessment(projectId, scores, overallFeedback)` in `lib/actions/projects.ts`
+- Use auto-sizing textareas for justifications (follow learning goal editor pattern)
+- Implement proper loading states and error handling for AI calls
+- Assessment should be read-only for students when project phase is 'closed'
+- Focus on the complete rubric-based feedback workflow that locks the project per user story 3.5
 
 -----
 
@@ -335,19 +354,19 @@ During Step 21, identified and implemented missing invite system components:
 
 This section includes steps for creating tests and final documentation to ensure application quality and correctness for competition submission.
 
-[ ] Step 27: Setup and Write Unit Tests
+[ ] Step 28: Setup and Write Unit Tests
 **Task**: Configure Jest for unit testing. Create tests for key server actions. For example, test the user-selection mention logic in `createComment`, validate `getProjectMentionableUsers` returns correct users, and ensure `getNotifications` correctly respects RLS (by mocking the user).
 **Suggested Files for Context**: `lib/actions/artifacts/comments.ts`, `lib/actions/shared/validation.ts`, `lib/actions/notifications.ts`, `lib/security/file-validation.ts`, `docs/tech-spec.md`
 **Step Dependencies**: All backend feature steps, Phase 4 Optimization completed
 **User Instructions**: Run `npm install --save-dev jest jest-environment-jsdom @testing-library/react @testing-library/jest-dom` and then run `npm test`.
 
-[ ] Step 28: IMPORTANT: Setup and Write E2E Tests
+[ ] Step 29: IMPORTANT: Setup and Write E2E Tests
 **Task**: Configure Playwright for end-to-end testing. Update test setups to log in users via the new password method. Implement tests for the key feature flows: 1. A user posts a comment with user-selection @mentions, and the mentioned user receives a notification. 2. A user interacts with the Learning Goal Editor and successfully gets AI suggestions. 3. The AI Tutor chat loads and displays a shared history.
 **Suggested Files for Context**: All relevant page and component files for these flows, `components/pblab/auth/auth-form.tsx`
 **Step Dependencies**: All feature steps, Step 21 (password authentication working)
 **User Instructions**: Run `npm init playwright@latest`. Test logins will now use the defined email/password combinations from the seed script.
 
-[ ] Step 29: **Create Final README.md Documentation**
+[ ] Step 30: **Create Final README.md Documentation**
 **Task**: Create the final `README.md` for competition submission. It must include the live application URL, GitHub repo link, and embedded demo video. Crucially, add the "Test Accounts" table with all credentials (admin@university.edu, educator1@university.edu, student1@university.edu, student3@university.edu, all with password123) and a detailed "Testing the Student Invite Feature" guide for judges to verify the invite link functionality works correctly.
 **Suggested Files for Context**: `docs/comp-criteria.md`, `docs/prd.md`, `scripts/seed.ts`
 **Step Dependencies**: All steps completed, live deployment ready

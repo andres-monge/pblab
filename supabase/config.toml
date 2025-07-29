@@ -85,12 +85,26 @@ file_size_limit = "50MiB"
 [storage.image_transformation]
 enabled = true
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# Configure local storage buckets
+[storage.buckets.artifacts]
+public = false
+file_size_limit = "10MiB"
+allowed_mime_types = [
+  # Images
+  "image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+  # Documents
+  "application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-powerpoint", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "text/plain", "text/markdown", "text/csv",
+  # Archives
+  "application/zip", "application/x-rar-compressed", "application/x-tar", "application/gzip",
+  # Video
+  "video/mp4", "video/mpeg", "video/quicktime", "video/x-msvideo", "video/webm",
+  # Audio
+  "audio/mpeg", "audio/wav", "audio/ogg", "audio/mp4"
+]
+objects_path = "./artifacts"
 
 [auth]
 enabled = true

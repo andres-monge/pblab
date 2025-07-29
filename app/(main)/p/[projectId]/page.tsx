@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 import { LearningGoalEditor } from "@/components/pblab/project/learning-goal-editor";
+import { ProjectArtifacts } from "@/components/pblab/project/project-artifacts";
 import { AiTutorChat } from "@/components/pblab/ai/ai-tutor-chat";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,22 +188,45 @@ export default async function ProjectWorkspace({
                 initialGoals={project.learning_goals}
               />
             ) : (
-              // Other phase content (placeholder for now)
-              <div className="space-y-4">
+              // Other phase content
+              <div className="space-y-6">
                 {project.phase === 'research' && (
-                  <p className="text-muted-foreground">
-                    Research phase components will be implemented in Step 26.
-                  </p>
+                  // Research phase - show artifacts interface
+                  <ProjectArtifacts
+                    projectId={project.id}
+                    currentUserId={user.id}
+                    currentUserRole={user.role}
+                  />
                 )}
+                
                 {project.phase === 'post' && (
-                  <p className="text-muted-foreground">
-                    Post-discussion and report submission components will be implemented in Step 26.
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground">
+                      Post-discussion and report submission components will be implemented in Step 27.
+                    </p>
+                    
+                    {/* Show artifacts in read-only mode for post phase */}
+                    <ProjectArtifacts
+                      projectId={project.id}
+                      currentUserId={user.id}
+                      currentUserRole={user.role}
+                    />
+                  </div>
                 )}
+                
                 {project.phase === 'closed' && (
-                  <p className="text-muted-foreground">
-                    This project has been completed and assessed.
-                  </p>
+                  <div className="space-y-4">
+                    <p className="text-muted-foreground">
+                      This project has been completed and assessed.
+                    </p>
+                    
+                    {/* Show artifacts in read-only mode for closed phase */}
+                    <ProjectArtifacts
+                      projectId={project.id}
+                      currentUserId={user.id}
+                      currentUserRole={user.role}
+                    />
+                  </div>
                 )}
                 
                 {/* Show learning goals if they exist (read-only in non-pre phases) */}

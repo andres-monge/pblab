@@ -55,5 +55,8 @@ export { createArtifact, deleteArtifact } from './crud';
 // Re-export comment functionality  
 export { createComment, getProjectMentionableUsers } from './comments';
 
+// Re-export query functionality
+export { getProjectArtifacts, type ArtifactWithComments } from './queries';
+
 // Re-export security utilities
 export { getAllowedFileTypes } from "@/lib/security/file-validation";
