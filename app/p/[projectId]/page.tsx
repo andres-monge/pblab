@@ -5,6 +5,7 @@ import { LearningGoalEditor } from "@/components/pblab/project/learning-goal-edi
 import { ProjectArtifacts } from "@/components/pblab/project/project-artifacts";
 import { AiTutorChat } from "@/components/pblab/ai/ai-tutor-chat";
 import { FinalReportSubmission } from "@/components/pblab/project/final-report-submission";
+import { RubricAssessment } from "@/components/pblab/educator/rubric-assessment";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Database } from "@/lib/db.types";
@@ -240,6 +241,11 @@ export default async function ProjectWorkspace({
                           </div>
                         </CardContent>
                       </Card>
+                    )}
+                    
+                    {/* Rubric Assessment for Educators */}
+                    {(user.role === 'educator' || user.role === 'admin') && (
+                      <RubricAssessment projectId={project.id} />
                     )}
                     
                     {/* Show artifacts in read-only mode for post phase */}

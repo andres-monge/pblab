@@ -266,19 +266,27 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 
 ---
 
-[ ] Step 31: **COMPLEX: Implement Educator Feedback & Locking UI** **Task**: On the project page, build the UI for educators to provide rubric-based feedback on a submitted report. This component will use the `saveAssessment` action from the previous step and then lock the project. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `lib/actions/assessments.ts` (the new action), `lib/actions/projects.ts` (for `updateProjectPhase`), `docs/comp-criteria.md` (Feedback System requirement) **Implementation Notes**:
+[x] Step 31: **COMPLEX: Implement Educator Feedback & Locking UI** ✅ **Task**: On the project page, build the UI for educators to provide rubric-based feedback on a submitted report. This component will use the `saveAssessment` action from the previous step and then lock the project. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `lib/actions/assessments.ts` (the new action), `lib/actions/projects.ts` (for `updateProjectPhase`), `docs/comp-criteria.md` (Feedback System requirement) **Implementation Notes**:
 
-1. Create a new component `components/pblab/educator/rubric-assessment.tsx`.
-    
-2. This component should be conditionally rendered on the project page for educators when `project.phase === 'post'`.
-    
-3. Fetch the rubric criteria for the project's problem.
-    
-4. For each criterion, display the `criterion_text` and provide inputs for a `score` (e.g., a 1-5 select/radio group) and a `justification` (textarea).
-    
-5. Include a final "Save Feedback & Lock Project" button.
-    
-6. On click, this button should first call `saveAssessment` with the form data, and upon success, call `updateProjectPhase` with `newPhase: 'closed'`.
+**✅ COMPLETED - All functionality implemented and integrated**
+
+1. ✅ Created `components/pblab/educator/rubric-assessment.tsx` with comprehensive assessment form
+2. ✅ Component conditionally rendered on project page for educators/admins when phase='post'
+3. ✅ Fetches rubric criteria using `getProjectAssessmentData()` with proper error handling
+4. ✅ For each criterion: displays text, number input (1 to max_score), and required justification textarea
+5. ✅ Includes optional overall feedback textarea and "Save Feedback & Lock Project" button
+6. ✅ Confirmation dialog warns about permanent project lock before submission
+7. ✅ On confirmation: calls `saveAssessment`, then `updateProjectPhase(phase='closed')`, redirects to educator dashboard
+8. ✅ **BONUS**: Shows existing assessments in read-only mode if educator already assessed the project
+
+**Key Features Delivered:**
+- Number inputs matching create-problem-form UI pattern (not select/radio)
+- Real-time validation with inline error messages
+- Loading states during data fetch and submission
+- Comprehensive error handling for all edge cases
+- Read-only view for existing assessments
+- Confirmation dialog for irreversible action
+- Automatic redirect to educator dashboard on success
     
 
 ---
