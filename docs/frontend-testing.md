@@ -1,168 +1,142 @@
-Step 28.1 Complete Problem-to-Project Workflow Testing at localhost:3000
+# Frontend Testing Guide
 
-**Testing PRD Requirements**: This test verifies the end-to-end workflow from educator problem creation with team assignment to student project access, addressing PRD User Stories 3.1.1 (student can join team) and 3.2.1 (educator can create PBL problem).
+This document provides step-by-step testing instructions for each implemented feature in PBLab.
 
-Prerequisites Check
+## Step 29: Student Final Report Submission
 
-1. ✅ Ensure npm run dev is running at localhost:3000
-2. ✅ Confirm database is seeded: `npm run db:seed -- --force`
-3. ✅ Verify local Supabase is running: `supabase status`
+### Overview
+Step 29 implements the final report submission feature where students can submit a URL to their final report during the research phase, which automatically transitions the project to the post phase.
 
----
-**PART A: Educator Creates Problem with Teams** (PRD 3.2.1)
+### Test Requirements (from PRD & Competition Criteria)
+- **PRD Section 3.1, User Story 6**: "I can submit the final report link and mark the project 'Ready for review'"
+- **Core Requirement**: Students must be able to complete the problem-solving workflow
 
-Step 1: Educator Authentication
+### Prerequisites
+1. Development server running (`npm run dev`)
+2. Database seeded with test accounts (`npm run db:seed`)
+3. At least one project in the "research" phase with a student team member
 
-1. Navigate to Application
-  - Open browser to http://localhost:3000
-  - Click "Login" button
-  - Enter credentials:
-      - Email: educator1@university.edu
-      - Password: password123
-  - Click "Sign In"
-  - Expected: Redirect to /educator/dashboard
+### Test Accounts (from seed script)
+- **Student**: `student1@example.com` / `password123`
+- **Student**: `student2@example.com` / `password123`
+- **Educator**: `educator1@example.com` / `password123`
 
-Step 2: Access Create Problem Page
+### Test Scenarios
 
-1. Dashboard Navigation
-  - Expected: See "Educator Dashboard" heading
-  - Look for: Blue "Create Problem" button in top-right corner
-  - Click the "Create Problem" button
-  - Expected: Navigate to /educator/problems/new
+#### Scenario 1: Student Can Submit Final Report URL
+1. **Login as Student**
+   - Navigate to `http://localhost:3000`
+   - Login with `student1@example.com` / `password123`
 
-Step 3: Fill Problem Basic Information
+2. **Navigate to Research Phase Project**
+   - Go to dashboard (`/student/dashboard`)
+   - Click on a project that shows "Research" phase
+   - Should be redirected to `/p/[projectId]`
 
-1. Problem Details
-  - Title: "Test PBL Problem - Complete Workflow"
-  - Description: "Testing the complete problem-to-project workflow with team creation"
-  - Course: Select "Computational Biology 101"
-  - Expected: Course selection triggers student loading
+3. **Verify Final Report Form Visibility**
+   - Scroll down to find "Final Report Submission" section
+   - Form should only be visible when project is in "research" phase
+   - Form should contain:
+     - URL input field with placeholder
+     - "Submit Final Report" button
+     - Helper text about Google Docs sharing settings
 
-Step 4: **NEW - Teams Section Testing**
+4. **Submit Valid Google Docs URL**
+   - Enter a Google Docs URL (e.g., `https://docs.google.com/document/d/1234567890/edit`)
+   - Click "Submit Final Report"
+   - Should see success message
+   - Project phase should automatically change from "research" to "post"
 
-1. Verify Teams Section Appears
-  - After selecting course, scroll down
-  - Expected: See "Create Teams (Optional)" section
-  - Expected: See "Add Team" button
-  - Expected: See message about creating teams and assigning students
+5. **Verify Phase Transition**
+   - Page should refresh/update
+   - Project phase indicator should show "Post"
+   - Final report form should no longer be visible
+   - Submitted report URL should be displayed in read-only format
 
-2. Create First Team
-  - Click "Add Team" button
-  - Expected: New team card appears with "Team 1"
-  - Expected: Shows "0 students" badge
-  - Expected: Shows student selection checkboxes for 4 students
+#### Scenario 2: Form Validation Works
+1. **Test Empty URL**
+   - Try submitting with empty URL field
+   - Should show validation error
 
-3. Assign Students to Team 1
-  - Check boxes for "Student 1" and "Student 2"
-  - Expected: Badge updates to "2 students"
-  - Expected: Checkboxes show selected state
+2. **Test Invalid URL**
+   - Enter invalid URL (e.g., "not-a-url")
+   - Should show validation error
 
-4. Create Second Team
-  - Click "Add Team" button again
-  - Expected: New team card appears with "Team 2"
-  - Assign "Student 3" and "Student 4" to Team 2
-  - Expected: Team 2 shows "2 students"
+#### Scenario 3: Educator Can View Submitted Report
+1. **Login as Educator**
+   - Logout and login with `educator1@example.com` / `password123`
 
-5. Test Team Management
-  - Try removing Team 2 (trash icon)
-  - Expected: Team 2 disappears
-  - Re-create Team 2 and assign students again
+2. **Navigate to Post Phase Project**
+   - Go to educator dashboard
+   - Find the project that was just submitted (should be in "Post" phase)
+   - Click to view project
 
-Step 5: Submit Problem with Teams
+3. **Verify Report Display**
+   - Should see submitted final report URL displayed
+   - URL should be clickable link
+   - Should see read-only view of submission
 
-1. Complete Submission
-  - Click "Create Problem" button
-  - Expected: Button shows "Creating..." with loading state
-  - Expected: Success redirect to /educator/dashboard
-  - Expected: No error messages
+#### Scenario 4: Wrong Phase Behavior
+1. **Test Pre Phase Project**
+   - Navigate to a project in "pre" phase
+   - Final report form should NOT be visible
 
----
-**PART B: Verify Students Can Access Projects** (PRD 3.1.1)
+2. **Test Closed Phase Project**
+   - Navigate to a project in "closed" phase  
+   - Final report form should NOT be visible
+   - Report should be displayed in read-only format
 
-Step 6: Student Authentication & Project Access
+### Expected Behaviors
 
-1. Login as Student 1
-  - Sign out educator (user menu → Sign Out)
-  - Login with:
-      - Email: student1@university.edu
-      - Password: password123
-  - Expected: Redirect to /student/dashboard
+#### Success Criteria
+-  Form only appears for students in research phase projects
+-  URL validation prevents invalid submissions
+-  Successful submission automatically transitions project to post phase
+-  Submitted report displays correctly for both students and educators
+-  Form disappears after successful submission
+-  Educators can view submitted reports in post phase
 
-2. Verify Project Visibility
-  - Expected: See "Student Dashboard" heading
-  - Look for "Active Projects" section
-  - Expected: See the newly created project "Test PBL Problem - Complete Workflow"
-  - Expected: Project shows "Phase: pre"
-  - Expected: Team name shows "Team 1"
+#### Error Scenarios
+- L Form should not appear in pre/post/closed phases
+- L Non-students should not see the submission form
+- L Invalid URLs should be rejected
+- L Empty submissions should be prevented
 
-3. Access Project Workspace
-  - Click on the project link
-  - Expected: Navigate to /p/[projectId]
-  - Expected: See project workspace page
-  - Expected: See problem title and description
-  - Expected: See learning goals editor (pre phase)
+### Technical Validation
 
-Step 7: Verify Second Student Access
+#### Database Changes
+After successful submission, verify in database:
+```sql
+-- Check project phase changed to 'post'
+SELECT phase FROM projects WHERE id = '[project-id]';
 
-1. Login as Student 3
-  - Sign out student1
-  - Login with student3@university.edu / password123
-  - Expected: Navigate to /student/dashboard
+-- Check final_report_url was saved
+SELECT final_report_url FROM projects WHERE id = '[project-id]';
+```
 
-2. Check Project Assignment
-  - Expected: See the same project
-  - Expected: Team name shows "Team 2" (different team)
-  - Access project workspace
-  - Expected: Same project, different team context
+#### Network Requests
+In browser dev tools, verify:
+- POST request to server action succeeds
+- Response indicates successful phase transition
+- Page updates reflect new state
 
----
-**PART C: Verify End-to-End Workflow**
+### Troubleshooting
 
-Step 8: Complete Workflow Verification
+#### Common Issues
+1. **Form not visible**: Check project phase and user role
+2. **Submission fails**: Check URL format and network connectivity
+3. **Phase doesn't transition**: Check server action implementation
+4. **Permission denied**: Verify user is team member of the project
 
-1. Educator Dashboard Check
-  - Login back as educator1@university.edu
-  - Navigate to /educator/dashboard
-  - Expected: See both projects in "Active Projects" section
-  - Expected: One project for Team 1, one for Team 2
-  - Expected: Both show "Phase: pre"
+#### Debug Steps
+1. Check browser console for errors
+2. Verify user authentication status
+3. Confirm project exists and user has access
+4. Check database RLS policies are working
 
-2. Data Integrity Check
-  - All students can access their assigned projects
-  - Projects are properly linked to teams and problem
-  - No manual admin intervention was required
-
----
-**Success Criteria Checklist** (PRD Requirements)
-
-**Educator Workflow (PRD 3.2.1):**
-- ✅ Can create PBL problem with title, description, and rubric
-- ✅ Can create teams during problem creation
-- ✅ Can assign students to teams via simple interface
-- ✅ Teams and projects auto-created in single transaction
-
-**Student Workflow (PRD 3.1.1):**
-- ✅ Students automatically have access to projects
-- ✅ Can join team (implicit via educator assignment)
-- ✅ Can access project workspace immediately
-- ✅ See correct team assignments
-
-**Technical Requirements:**
-- ✅ No manual admin intervention required
-- ✅ End-to-end workflow from problem → teams → projects
-- ✅ RLS policies working correctly
-- ✅ Database transactions maintain consistency
-
-**Critical Gap Resolved:**
-- ✅ Educators can now create problems AND make them accessible to students
-- ✅ Students immediately see projects after educator creates them
-- ✅ Complete workflow eliminates broken user experience
-
-If Any Issues Found
-
-- Check browser console for JavaScript errors
-- Verify all 4 students are visible in team creation
-- Confirm project appears on both students' dashboards
-- Ensure no database constraint violations
-
-**Expected Result**: Complete end-to-end workflow from educator problem creation to student project access works seamlessly! 🎉
+### Related Features
+This test connects to:
+- Project phase management (Step 21-22)
+- Student dashboard (Step 22)
+- Project workspace layout (Step 27)
+- Future educator assessment (Step 31)

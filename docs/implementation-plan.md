@@ -301,6 +301,9 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 2. If it does, transform the URL by replacing `/edit` with `/preview`.
     
 3. Render an `<iframe>` with the transformed URL as its `src`. Style it to have a reasonable height and width.
+
+Note: Before: https://docs.google.com/document/.../edit?usp=sharing → Security software flags as maliciousAfter: https://docs.google.com/document/.../view?usp=sharing →
+  Security software allows it. The fix automatically sanitizes Google Docs, Sheets, and Slides URLs by converting /edit to /view.
     
 
 ---

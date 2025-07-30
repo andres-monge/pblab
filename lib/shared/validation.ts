@@ -303,10 +303,37 @@ export function validateUrl(
 
   try {
     new URL(urlString);
-    return urlString;
+    // Sanitize Google Docs URLs to prevent security software interference
+    return sanitizeGoogleDocsUrl(urlString);
   } catch (urlError) {
     throw new ValidationError(fieldName, 'must be a valid URL', value, { urlError: urlError instanceof Error ? urlError.message : String(urlError) });
   }
+}
+
+/**
+ * Sanitizes Google Docs URLs by converting edit URLs to view-only URLs
+ * This prevents security software from flagging edit URLs as potentially malicious
+ * 
+ * @param url - The URL to sanitize
+ * @returns The sanitized URL
+ */
+function sanitizeGoogleDocsUrl(url: string): string {
+  // Convert Google Docs edit URLs to view-only URLs
+  if (url.includes('docs.google.com/document/') && url.includes('/edit')) {
+    return url.replace('/edit', '/view');
+  }
+  
+  // Convert Google Sheets edit URLs to view-only URLs
+  if (url.includes('docs.google.com/spreadsheets/') && url.includes('/edit')) {
+    return url.replace('/edit', '/view');
+  }
+  
+  // Convert Google Slides edit URLs to view-only URLs
+  if (url.includes('docs.google.com/presentation/') && url.includes('/edit')) {
+    return url.replace('/edit', '/view');
+  }
+  
+  return url;
 }
 
 /**
