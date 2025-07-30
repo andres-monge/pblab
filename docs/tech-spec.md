@@ -227,41 +227,27 @@ The project will be built upon the provided Next.js starter template. New direct
     
     1. In the 'post' phase, a "Submit Final Report" section appears.
         
-    2. Students paste a Google Drive URL. A prominent tip recommends setting the document to "Anyone with the link can view."
-        
-    3. The system attempts a public export first. If it fails, it uses the Google Picker to grant temporary access.
-        
-    4. The document's text content is cached in the database, and the project status is updated for review.
+    2. Students paste a Google Drive URL into a text field and submit.
+    
+    3. The UI will display a tip for the student: "💡 **Tip**: Set your document to 'Anyone with the link can view' so your educators won't need to request access."
         
 - **Error Handling:**
     
     - Invalid Google Drive URL: Show format validation error.
         
-    - Permission denied: Guide user through the Picker flow.
-        
-    - Export failure: Provide clear error messages.
-        
 
-### 3.5 Educator: AI-Assisted Rubric Assessment
+### 3.5 Educator: Provide Rubric-Based Feedback and Lock Project
 
-- **User Story:** I can trigger an AI-powered rubric assessment on the final report, review and seamlessly edit it, provide feedback to the AI for regeneration, and then lock the project.
+- **User Story:** As an educator, I can manually enter scores and comments against a rubric for a team's final report, and then finalize the assessment to lock the project from further edits.
     
 - **Implementation Steps:**
     
-    1. When a project is submitted, the educator's view of `/p/[projectId]` shows the final report URL and a `<RubricEditor />` component with a "Grade with AI" button.
+    1. When a project is submitted, the educator's view of `/p/[projectId]` shows the final report URL and a `<RubricEditor />` component.
         
-    2. **Generation:** Clicking the button calls `POST /api/ai/assess` with the `{ projectId }`. The API route uses the cached report content and rubric to prompt Gemini, which returns a structured JSON of scores and justifications. The response is saved with a status of `pending_review`.
+    2. This component displays the rubric criteria, each with an input for a 1-5 score and a textarea for comments.
         
-    3. **Verification & Refinement:** The `<RubricEditor />` displays the `pending_review` assessment.
+    3. The educator clicks a single **"Save & Finalize"** button. This calls a new server action (`saveAssessment`) to store the manual scores and then calls another action (`updateProjectPhase`) to set the project's status to `closed`.
         
-        - Each criterion's score and justification are displayed in **immediately editable, auto-sizing text areas**, removing the need for a separate 'Edit' mode.
-            
-        - An "AI Feedback" textarea allows the educator to type natural language instructions for regeneration.
-            
-        - **Save & Finalize:** The educator can directly change scores and text and click "Save & Finalize". This updates the records, sets the assessment `status` to `final`, and the project `phase` to `closed`.
-            
-        - **Regenerate:** Clicking "Regenerate" calls the assessment API again, including the educator's feedback to refine the output.
-            
 - **Error Handling:**
     
     - AI call fails or returns malformed data: Return a user-friendly error.
@@ -391,7 +377,6 @@ CREATE TABLE projects (
     learning_goals TEXT, -- Student-defined learning goals
     problem_statement_url TEXT, -- Link to Google Doc or similar
     final_report_url TEXT,
-    final_report_content TEXT, -- Cached plain text content from Google Drive
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -494,6 +479,7 @@ Server actions will be the primary mechanism for client components to mutate dat
 - **`updateProjectPhase(projectId, newPhase)`**: Updates a project's phase. Performs authorization checks.
 - **`updateProjectReportUrl(projectId, url)`**: Sets the final report URL.
 - **`updateProjectReportContent(projectId, url, content)`**: Sets both the final report URL and caches the plain text content.
+- **`saveAssessment(data)`**: Creates records in the `assessments` and `assessment_scores` tables based on the educator's manual input.
 - **`updateProjectLearningGoals(projectId, goals)`**: Saves the student-defined learning goals to the project.
 
 #### Artifact & Comment Actions
@@ -565,207 +551,24 @@ Server actions will be the primary mechanism for client components to mutate dat
             
     - **Response Body:** `{ "suggestions": ["string", "string", ...] }`
     
-- **`POST /api/ai/assess`**
-    
-    - **Purpose:** Initiates or refines an AI-powered assessment.
-        
-    - **Request Body:** `{ "projectId": "uuid", "feedbackToAi"?: "string", "previousAssessment"?: { ... } }`
-        
-    - **Process:**
-        
-        1. Authenticate user, verify they are an educator for the project's course.
-            
-        2. Fetch project's cached report content and rubric criteria from the database.
-            
-        3. Construct a prompt for a Gemini Function call to generate scores and justifications against the rubric. If `feedbackToAi` is present, include it in the prompt to refine the previous output.
-            
-        4. Parse the structured JSON response from Gemini.
-            
-        5. Create/update records in `assessments` and `assessment_scores` tables.
-            
-        6. Return the new assessment data.
-            
-    - **Response Body:** `{ "assessment": { ... } }` (The full assessment object with scores).
-        
 
 ---
 
 ## 6. Google Drive Integration
 
-### 6.1 Overview
+PBLab will simplify Google Drive integration for the MVP. Instead of complex backend API interactions, the application will focus on direct URL submission and client-side preview.
 
-PBLab integrates with Google Drive to allow students to submit documents, spreadsheets, and presentations as final reports. The integration uses a hybrid approach that prioritizes user experience, security, and reliability while handling both public and private files seamlessly.
+### 6.1 MVP Integration Strategy
 
-### 6.2 Integration Strategy
+-   **URL Storage Only**: The application will only store the Google Drive URL provided by the student in the `projects.final_report_url` field.
+    
+-   **Client-side Preview**: To display a preview of the submitted document, the frontend will transform the stored Google Drive URL (e.g., replacing `/edit` with `/preview` or `/view` with `/embed`) and render it within an `<iframe>` HTML element. This leverages Google Drive's native embedding capabilities.
+    
+-   **No Backend API Integration**: For the MVP, there will be no backend API calls to Google Drive for content export, permission management, or picker integration. All file access and content viewing will rely on the end-user's browser directly accessing the Google Drive URL, subject to Google's own sharing permissions.
 
-#### Hybrid Detection Approach
+### 6.2 User Experience
 
-1. **Public File Access (Sheets Only)**: For Google Sheets set to "Anyone with the link can view", use direct export URLs without authentication:
-    
-    - Format: `https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv`
-        
-    - Fast, no user interaction required
-        
-    - Fallback to Picker if access fails
-        
-2. **Google Picker for Private Files**: For private files or when public access fails:
-    
-    - Use `drive.file` scope (minimal permissions)
-        
-    - User grants access only to the specific file they select
-        
-    - 1-hour access token is sufficient for immediate export and caching
-        
-
-#### Content Caching Strategy
-
-- Export document content to plain text immediately upon submission
-    
-- Cache content in the `projects.final_report_content` database field
-    
-- Typical size: 10-100KB of plain text per document
-    
-- Eliminates dependency on long-lived tokens or refresh tokens
-    
-
-#### Preview Strategy
-
-- Store the original Google Drive URL for educator access
-    
-- Educators click direct Google Drive links in their dashboard
-    
-- Google's native permission system handles access requests
-    
-- No custom permission handling code required
-    
-
-### 6.3 Implementation Details
-
-#### File Submission Flow
-
-TypeScript
-
-```
-// Client-side submission handler
-async function handleFileSubmission(fileUrl: string) {
-  const fileId = extractFileId(fileUrl);
-  
-  // Try public access first (faster, no user interaction)
-  try {
-    const publicContent = await tryPublicExport(fileId);
-    if (publicContent) {
-      return await updateProjectReportContent(projectId, fileUrl, publicContent);
-    }
-  } catch (error) {
-    // Fall through to Picker
-  }
-  
-  // Use Picker for private files
-  return await usePickerFlow(fileId, fileUrl);
-}
-
-async function usePickerFlow(fileId: string, fileUrl: string) {
-  try {
-    const pickerResult = await showGooglePicker();
-    const content = await exportWithPickerToken(pickerResult.accessToken, fileId);
-    return await updateProjectReportContent(projectId, fileUrl, content);
-  } catch (error) {
-    if (error.code === 'PERMISSION_DENIED') {
-      // Fallback: manual content input
-      return showManualInputFallback();
-    }
-    throw error;
-  }
-}
-```
-
-#### Export Format Detection
-
-TypeScript
-
-```
-function getExportFormat(mimeType: string): string {
-  const formats = {
-    'application/vnd.google-apps.document': 'text/plain',
-    'application/vnd.google-apps.spreadsheet': 'text/csv', 
-    'application/vnd.google-apps.presentation': 'text/plain',
-  };
-  return formats[mimeType] || 'text/plain';
-}
-```
-
-### 6.4 User Experience Enhancements
-
-#### Sharing Recommendations
-
-- Display a prominent suggestion during submission: "💡 **Tip**: Set your document to 'Anyone with the link can view' so your educators and teammates won't need to request access later."
-    
-- Show visual guide on how to change sharing settings
-    
-- Explain that this prevents interruptions during grading and peer review
-    
-
-#### Error Handling
-
-- **Permission Denied**: Show Google Picker as alternative
-    
-- **File Not Found**: Validate URL format and suggest checking sharing settings
-    
-- **Export Failed**: Offer manual content input as ultimate fallback
-    
-- **Cache Miss**: Allow educators to request re-submission if needed
-    
-
-### 6.5 API Routes
-
-#### GET /api/drive/export
-
-- **Purpose**: Attempt public export of Google Sheets
-    
-- **Parameters**: `fileId`, `format` (csv/tsv)
-    
-- **Response**: Plain text content or 403 error
-    
-
-#### POST /api/drive/picker
-
-- **Purpose**: Handle Picker-based file export
-    
-- **Request**: `{ fileId, accessToken, mimeType }`
-    
-- **Process**: Use short-lived token to export content immediately
-    
-- **Response**: Plain text content
-    
-
-### 6.6 Security Considerations
-
-#### Minimal Permissions
-
-- Use `drive.file` scope instead of broad Drive access
-    
-- Picker only grants access to user-selected files
-    
-- No long-lived token storage required
-    
-
-#### Content Privacy
-
-- Cached content is subject to the same RLS policies as projects
-    
-- Educators can only access content for their course projects
-    
-- Students can only access their team's project content
-    
-
-#### Token Management
-
-- Picker tokens expire in ~1 hour (sufficient for immediate use)
-    
-- No refresh token complexity or storage required
-    
-- Cache-on-submit eliminates future token dependencies
-    
+-   **Sharing Recommendation**: A prominent tip will be displayed to students during submission, advising them to set their document to "Anyone with the link can view" to ensure educators and teammates can easily access it without permission issues.
 
 ---
 
@@ -866,15 +669,11 @@ function getExportFormat(mimeType: string): string {
         
 - **`RubricEditor` (`components/pblab/educator/rubric-editor.tsx`):**
     
-    - **State Management:** Uses `useState` to manage the scores, justifications, and AI feedback text.
+    - **State Management:** Uses `useState` to manage the scores and justifications entered by the educator.
         
     - **Event Handlers:**
         
-        - `handleGenerate()`: Calls the `/api/ai/assess` endpoint.
-            
-        - `handleRegenerate()`: Calls the same endpoint but includes refinement feedback.
-            
-        - `handleSave()`: Calls a server action to save the final (potentially edited) grades.
+        - `handleSave()`: Calls a server action (`saveAssessment`) to save the manual feedback and then calls another action (`updateProjectPhase`) to lock the project.
             
     - **Props:** `interface Props { projectId: string; initialAssessment: Assessment | null; isTemplateMode: boolean; }`
         
@@ -1015,7 +814,7 @@ A primary goal of the testing strategy is to provide a frictionless evaluation e
             
         3. Test navigates to the project page `/p/[projectId]`.
             
-        4. Test interacts with the `<RubricEditor />` to enter a grade.
+        4. Test interacts with the `<RubricEditor />` to enter scores and comments for each criterion.
             
         5. Test clicks "Save & Finalize".
             
