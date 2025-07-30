@@ -1,180 +1,168 @@
-Step 28 Complete User Flow Testing at localhost:3000
+Step 28.1 Complete Problem-to-Project Workflow Testing at localhost:3000
 
-  Prerequisites Check
+**Testing PRD Requirements**: This test verifies the end-to-end workflow from educator problem creation with team assignment to student project access, addressing PRD User Stories 3.1.1 (student can join team) and 3.2.1 (educator can create PBL problem).
 
-  1. ✅ Ensure npm run dev is running at localhost:3000
-  2. ✅ Confirm database is seeded with test accounts
+Prerequisites Check
 
-  ---
-  Step 1: Authentication & Access
+1. ✅ Ensure npm run dev is running at localhost:3000
+2. ✅ Confirm database is seeded: `npm run db:seed -- --force`
+3. ✅ Verify local Supabase is running: `supabase status`
 
-  1. Navigate to Application
-    - Open browser to http://localhost:3000
-    - Should see PBLab landing page
-  2. Login as Educator
-    - Click "Login" button
-    - Enter credentials:
-        - Email: educator1@university.edu
+---
+**PART A: Educator Creates Problem with Teams** (PRD 3.2.1)
+
+Step 1: Educator Authentication
+
+1. Navigate to Application
+  - Open browser to http://localhost:3000
+  - Click "Login" button
+  - Enter credentials:
+      - Email: educator1@university.edu
       - Password: password123
-    - Click "Sign In"
-    - Expected: Redirect to /educator/dashboard
+  - Click "Sign In"
+  - Expected: Redirect to /educator/dashboard
 
-  ---
-  Step 2: Dashboard Navigation
+Step 2: Access Create Problem Page
 
-  1. Verify Dashboard Layout
-    - Should see "Educator Dashboard" heading
-    - Should see three cards: "My Courses", "Active Projects", "Pending Assessments"
-    - Look for: Blue "Create Problem" button in top-right corner
-  2. Access Create Problem Page
-    - Click the "Create Problem" button
-    - Expected: Navigate to /educator/problems/new
-    - Expected: URL shows /educator/problems/new
+1. Dashboard Navigation
+  - Expected: See "Educator Dashboard" heading
+  - Look for: Blue "Create Problem" button in top-right corner
+  - Click the "Create Problem" button
+  - Expected: Navigate to /educator/problems/new
 
-  ---
-  Step 3: Create Problem Page Verification
+Step 3: Fill Problem Basic Information
 
-  1. Page Load Check
-    - Expected: Page loads without errors
-    - Expected: Breadcrumb shows: "Dashboard → Create New Problem"
-    - Expected: Page title "Create New Problem"
-  2. Form Pre-population Check
-    - Expected: Course dropdown shows "Computational Biology 101"
-    - Expected: 5 rubric criteria are pre-loaded with default PBL template
-    - Expected: Each criterion has sample text and max score of 5
+1. Problem Details
+  - Title: "Test PBL Problem - Complete Workflow"
+  - Description: "Testing the complete problem-to-project workflow with team creation"
+  - Course: Select "Computational Biology 101"
+  - Expected: Course selection triggers student loading
 
-  ---
-  Step 4: Form Functionality Testing
+Step 4: **NEW - Teams Section Testing**
 
-  Basic Form Fields
+1. Verify Teams Section Appears
+  - After selecting course, scroll down
+  - Expected: See "Create Teams (Optional)" section
+  - Expected: See "Add Team" button
+  - Expected: See message about creating teams and assigning students
 
-  1. Title Field
-    - Click in "Problem Title" field
-    - Type: "Test UI Problem - [Your Name]"
-    - Expected: Text appears normally
-  2. Description Field
-    - Click in "Problem Description" textarea
-    - Type: "This is a test problem created through the UI to verify Step 28 functionality."
-    - Expected: Textarea expands as needed
-  3. Course Selection
-    - Click course dropdown
-    - Expected: Shows "Computational Biology 101" option
-    - Select it
-    - Expected: Dropdown shows selected course
+2. Create First Team
+  - Click "Add Team" button
+  - Expected: New team card appears with "Team 1"
+  - Expected: Shows "0 students" badge
+  - Expected: Shows student selection checkboxes for 4 students
 
-  Dynamic Rubric Testing
+3. Assign Students to Team 1
+  - Check boxes for "Student 1" and "Student 2"
+  - Expected: Badge updates to "2 students"
+  - Expected: Checkboxes show selected state
 
-  4. Edit Existing Criteria
-    - Click in first criterion textarea
-    - Modify the text (add "MODIFIED: " at the beginning)
-    - Expected: Text updates normally
-  5. Add New Criterion
-    - Scroll down to rubric section
-    - Click "Add Criterion" button
-    - Expected: New empty criterion appears at bottom
-    - Expected: Shows "Criterion 6"
-    - Fill in text: "Test Criterion - Added via UI"
-  6. Remove Criterion
-    - Click trash icon on the newly added criterion
-    - Expected: Criterion is removed
-    - Try to remove criteria until only 1 remains
-    - Expected: Remove button becomes disabled (minimum 1 enforced)
-  7. Max Score Testing
-    - Change max score on any criterion to 3
-    - Expected: Value updates
-    - Try entering 15 (invalid)
-    - Expected: Should clamp to max value 10
+4. Create Second Team
+  - Click "Add Team" button again
+  - Expected: New team card appears with "Team 2"
+  - Assign "Student 3" and "Student 4" to Team 2
+  - Expected: Team 2 shows "2 students"
 
-  ---
-  Step 5: Form Validation Testing
+5. Test Team Management
+  - Try removing Team 2 (trash icon)
+  - Expected: Team 2 disappears
+  - Re-create Team 2 and assign students again
 
-  Error Cases
+Step 5: Submit Problem with Teams
 
-  1. Empty Title Test
-    - Clear the title field completely
-    - Click "Create Problem" button
-    - Expected: Red error message appears: "Problem title is required"
-  2. Empty Course Test
-    - Fill title but clear course selection
-    - Click "Create Problem" button
-    - Expected: Error message: "Please select a course"
-  3. Empty Criterion Test
-    - Clear the text of one criterion completely
-    - Click "Create Problem" button
-    - Expected: Error message: "All rubric criteria must have text"
+1. Complete Submission
+  - Click "Create Problem" button
+  - Expected: Button shows "Creating..." with loading state
+  - Expected: Success redirect to /educator/dashboard
+  - Expected: No error messages
 
-  Fix and Retry
+---
+**PART B: Verify Students Can Access Projects** (PRD 3.1.1)
 
-  4. Fill Valid Data
-    - Title: "UI Test Problem"
-    - Description: "Created via manual testing"
-    - Course: Select "Computational Biology 101"
-    - Ensure all criteria have text
+Step 6: Student Authentication & Project Access
 
-  ---
-  Step 6: Successful Submission
+1. Login as Student 1
+  - Sign out educator (user menu → Sign Out)
+  - Login with:
+      - Email: student1@university.edu
+      - Password: password123
+  - Expected: Redirect to /student/dashboard
 
-  1. Submit Form
-    - Click "Create Problem" button
-    - Expected: Button shows "Creating..." with loading state
-    - Expected: Form fields become disabled during submission
-  2. Success Verification
-    - Expected: Redirect back to /educator/dashboard
-    - Expected: No error messages appear
-    - Expected: Back on dashboard page
+2. Verify Project Visibility
+  - Expected: See "Student Dashboard" heading
+  - Look for "Active Projects" section
+  - Expected: See the newly created project "Test PBL Problem - Complete Workflow"
+  - Expected: Project shows "Phase: pre"
+  - Expected: Team name shows "Team 1"
 
-  ---
-  Step 7: Navigation Testing
+3. Access Project Workspace
+  - Click on the project link
+  - Expected: Navigate to /p/[projectId]
+  - Expected: See project workspace page
+  - Expected: See problem title and description
+  - Expected: See learning goals editor (pre phase)
 
-  1. Cancel Button Test
-    - Go back to /educator/problems/new
-    - Fill in some data
-    - Click "Cancel" button
-    - Expected: Navigate back to previous page (dashboard)
-  2. Breadcrumb Navigation
-    - Go to /educator/problems/new again
-    - Click "Dashboard" in breadcrumb
-    - Expected: Navigate to /educator/dashboard
+Step 7: Verify Second Student Access
 
-  ---
-  Step 8: Mobile Responsiveness
+1. Login as Student 3
+  - Sign out student1
+  - Login with student3@university.edu / password123
+  - Expected: Navigate to /student/dashboard
 
-  1. Resize Browser
-    - Make browser window narrow (mobile size)
-    - Navigate to create problem page
-    - Expected: Form adapts to mobile layout
-    - Expected: All buttons and fields remain usable
+2. Check Project Assignment
+  - Expected: See the same project
+  - Expected: Team name shows "Team 2" (different team)
+  - Access project workspace
+  - Expected: Same project, different team context
 
-  ---
-  Step 9: Back Button & Browser Navigation
+---
+**PART C: Verify End-to-End Workflow**
 
-  1. Browser Back Button
-    - Navigate to create problem page
-    - Use browser back button
-    - Expected: Returns to dashboard
-    - Use browser forward button
-    - Expected: Returns to create problem page
+Step 8: Complete Workflow Verification
 
-  ---
-  Success Criteria Checklist
+1. Educator Dashboard Check
+  - Login back as educator1@university.edu
+  - Navigate to /educator/dashboard
+  - Expected: See both projects in "Active Projects" section
+  - Expected: One project for Team 1, one for Team 2
+  - Expected: Both show "Phase: pre"
 
-  - ✅ Authentication works with educator account
-  - ✅ Dashboard shows "Create Problem" button
-  - ✅ Navigation to /educator/problems/new works
-  - ✅ Page loads with pre-populated rubric template
-  - ✅ Course dropdown shows available courses
-  - ✅ Can add/remove rubric criteria dynamically
-  - ✅ Form validation catches errors appropriately
-  - ✅ Successful submission redirects to dashboard
-  - ✅ No console errors during any step
-  - ✅ Mobile responsive design works
-  - ✅ Navigation (breadcrumbs, cancel, back) all work
+2. Data Integrity Check
+  - All students can access their assigned projects
+  - Projects are properly linked to teams and problem
+  - No manual admin intervention was required
 
-  If Any Issues Found
+---
+**Success Criteria Checklist** (PRD Requirements)
 
-  - Check browser console for errors
-  - Verify database connection is working
-  - Confirm you're using the correct test credentials
-  - Ensure dev server is running without errors
+**Educator Workflow (PRD 3.2.1):**
+- ✅ Can create PBL problem with title, description, and rubric
+- ✅ Can create teams during problem creation
+- ✅ Can assign students to teams via simple interface
+- ✅ Teams and projects auto-created in single transaction
 
-  Expected Result: All steps should complete successfully, demonstrating that Step 28 is fully functional from the user perspective! 🎉
+**Student Workflow (PRD 3.1.1):**
+- ✅ Students automatically have access to projects
+- ✅ Can join team (implicit via educator assignment)
+- ✅ Can access project workspace immediately
+- ✅ See correct team assignments
+
+**Technical Requirements:**
+- ✅ No manual admin intervention required
+- ✅ End-to-end workflow from problem → teams → projects
+- ✅ RLS policies working correctly
+- ✅ Database transactions maintain consistency
+
+**Critical Gap Resolved:**
+- ✅ Educators can now create problems AND make them accessible to students
+- ✅ Students immediately see projects after educator creates them
+- ✅ Complete workflow eliminates broken user experience
+
+If Any Issues Found
+
+- Check browser console for JavaScript errors
+- Verify all 4 students are visible in team creation
+- Confirm project appears on both students' dashboards
+- Ensure no database constraint violations
+
+**Expected Result**: Complete end-to-end workflow from educator problem creation to student project access works seamlessly! 🎉

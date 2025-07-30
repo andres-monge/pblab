@@ -199,68 +199,28 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 
 ---
 
-[ ] Step 28.1: **CRITICAL: Complete Problem-to-Project Workflow** **Task**: Extend the "Create Problem" page to include team creation and student assignment, completing the missing link between educator problem creation and student project work. This addresses the fundamental gap where educators can create problems but students cannot access them without manual admin intervention. **Suggested Files for Context**: `components/pblab/educator/create-problem-form.tsx`, `lib/actions/problems.ts`, `lib/actions/teams.ts`, `lib/actions/projects.ts`, `docs/prd.md` (Section 3.1, User Story 1 & 2), `docs/tech-spec.md` (Section 3.1 & 3.2) **Implementation Notes**:
+[x] Step 28.1: **CRITICAL: Complete Problem-to-Project Workflow** ✅ **Task**: Extend the "Create Problem" page to include team creation and student assignment, completing the missing link between educator problem creation and student project work. This addresses the fundamental gap where educators can create problems but students cannot access them without manual admin intervention. **Suggested Files for Context**: `components/pblab/educator/create-problem-form.tsx`, `lib/actions/problems.ts`, `lib/actions/teams.ts`, `lib/actions/projects.ts`, `docs/prd.md` (Section 3.1, User Story 1 & 2), `docs/tech-spec.md` (Section 3.1 & 3.2) **Implementation Notes**:
 
-**Problem Context**: Currently, educators can create problems (Step 28) but there's no mechanism for students to discover and start working on them. This creates a broken user flow where problems exist but students have no projects to work on.
+**✅ COMPLETED - All functionality implemented and tested with authenticated users**
 
-**RLS & Database Compatibility**: ✅ **Fully Supported**
-- Educators can create teams in their courses (RLS policy lines 118-129)
-- Educators can manage team membership (RLS policy lines 191-212)
-- Educators can create projects (RLS policy lines 305-320)
-- Existing invite system in `lib/actions/teams.ts` supports JWT-based invitations
+1. ✅ Enhanced `CreateProblemForm` with optional teams section that appears after course selection
+2. ✅ Extended `createProblem` action with teams parameter and transaction flow: Problem → Rubric → Teams → Projects → Invites
+3. ✅ Added `getStudentsInCourse` function for student selection interface
+4. ✅ Implemented dynamic team creation with student assignment via checkboxes
+5. ✅ Created comprehensive rollback strategy if any step fails
+6. ✅ **TESTED with authenticated educator and student users** - all functionality verified working:
+   - Educator can create problems with teams
+   - Teams and projects auto-created in single transaction
+   - Students can see projects immediately via RLS policies
+   - End-to-end workflow completes the missing problem-to-project link
 
-**Implementation Steps**:
-
-1. **Enhance Create Problem Form** (`components/pblab/educator/create-problem-form.tsx`)
-   - Add new expandable section: "Create Teams for This Problem" (after rubric section)
-   - Include team creation interface with dynamic add/remove team functionality
-   - Add student selection interface for each team (dropdown/checkbox selection)
-   - Display invite link generation status and preview
-
-2. **Extend Problem Creation Action** (`lib/actions/problems.ts`)
-   - Add optional `teams` parameter to `CreateProblemParams` interface
-   - After successful problem creation, iterate through teams array
-   - Create team records using existing RLS-compliant operations
-   - Create project instances linking each team to the new problem
-   - Generate invite tokens for selected students per team
-
-3. **Create Supporting Components**
-   - `<TeamCreator />`: Dynamic team creation with name input and student assignment
-   - `<StudentSelector />`: Multi-select interface for choosing students per team
-   - `<InviteLinkGenerator />`: Display and copy invite links for each team
-   - Integrate with existing `generateInviteToken()` from `lib/actions/teams.ts`
-
-4. **Database Transaction Flow**
-   - Problem creation (existing)
-   - Rubric creation (existing) 
-   - Team creation (new, per team in array)
-   - Team membership assignment (new, per student selection)
-   - Project creation (new, linking team to problem)
-   - Invite token generation (new, per team)
-   - All wrapped in comprehensive error handling with rollback
-
-5. **UI/UX Enhancements**
-   - Progressive disclosure: teams section only shows after successful problem creation
-   - Real-time invite link generation with copy-to-clipboard functionality
-   - Clear feedback on successful team creation and project assignment
-   - Email/notification system integration for automatic invite delivery
-
-**Success Criteria**:
-- Educator creates problem with teams → Teams and projects auto-created → Students receive invites → Students join teams → Students see active projects on dashboard
-- Complete end-to-end workflow from problem creation to student engagement
-- No manual admin intervention required for standard educator-managed courses
-
-**Technical Benefits**:
-- Leverages existing RLS policies and database constraints
-- Builds on proven invite system and project creation logic
-- Maintains educator autonomy over their course management
-- Eliminates dependency on admin dashboard for routine operations
-
-**User Experience Impact**:
-- Natural workflow: educators control complete problem-to-project lifecycle
-- Immediate value: students get projects right after problem creation
-- Scalable: supports multiple teams per problem with varied student assignments
-- Professional: matches real-world educational administration patterns
+**Key Features Delivered:**
+- Progressive UI disclosure: teams section only shows after course selection
+- Dynamic add/remove teams with auto-generated names ("Team 1", "Team 2")
+- Student selection via checkboxes with visual feedback (badge showing count)
+- Atomic database operations with comprehensive error handling
+- Complete integration with existing RLS policies and authorization
+- Authenticated user testing confirms all policies work correctly
 
 ---
 
@@ -272,7 +232,7 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
     
 3. The form's `onSubmit` handler should call the existing `updateProjectReportUrl` server action.
     
-4. Include the recommended user instruction: "💡 **Tip:** For the preview to work, please set your document's sharing permission to 'Anyone with the link can view'."
+4. Include the recommended user instruction: "💡 **Tip:** Set your document to 'Anyone with the link can view' so your educators won't need to request access.
     
 
 ---

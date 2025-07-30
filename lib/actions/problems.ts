@@ -7,8 +7,10 @@ import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 import { requireProjectCreationPermissions } from "@/lib/shared/authorization-utils";
 import {
   CreateResult,
+  QueryResult,
   createIdResponse,
-  createErrorResponse
+  createErrorResponse,
+  createSuccessResponse
 } from "@/lib/shared/action-types";
 
 type Problem = Database["public"]["Tables"]["problems"]["Insert"];
@@ -16,6 +18,8 @@ type Rubric = Database["public"]["Tables"]["rubrics"]["Insert"];
 type RubricCriterion = Database["public"]["Tables"]["rubric_criteria"]["Insert"];
 
 import type { CreateProblemParams } from "@/lib/types/problems";
+import { generateInviteToken } from "@/lib/actions/teams";
+import { createProject } from "@/lib/actions/projects";
 
 /**
  * Create a new PBL problem with associated rubric and criteria
@@ -31,7 +35,7 @@ import type { CreateProblemParams } from "@/lib/types/problems";
  * @returns Promise resolving to CreateResult with problem ID or error
  */
 export async function createProblem(params: CreateProblemParams): Promise<CreateResult> {
-  const { title, description, courseId, rubric } = params;
+  const { title, description, courseId, rubric, teams } = params;
 
   // Validate required parameters
   if (!title || typeof title !== 'string' || title.trim().length === 0) {
@@ -68,6 +72,32 @@ export async function createProblem(params: CreateProblemParams): Promise<Create
     
     if (typeof criterion.sort_order !== 'number' || criterion.sort_order < 0) {
       return createErrorResponse(`Criterion ${i + 1}: Sort order must be a non-negative number`);
+    }
+  }
+
+  // Validate teams if provided
+  if (teams && Array.isArray(teams)) {
+    for (let i = 0; i < teams.length; i++) {
+      const team = teams[i];
+      
+      if (!team.name || typeof team.name !== 'string' || team.name.trim().length === 0) {
+        return createErrorResponse(`Team ${i + 1}: Name is required and cannot be empty`);
+      }
+      
+      if (!Array.isArray(team.studentIds)) {
+        return createErrorResponse(`Team ${i + 1}: Student IDs must be an array`);
+      }
+      
+      if (team.studentIds.length === 0) {
+        return createErrorResponse(`Team ${i + 1}: At least one student must be assigned`);
+      }
+      
+      // Validate each student ID is a valid UUID string
+      for (const studentId of team.studentIds) {
+        if (!studentId || typeof studentId !== 'string') {
+          return createErrorResponse(`Team ${i + 1}: Invalid student ID format`);
+        }
+      }
     }
   }
 
@@ -148,10 +178,79 @@ export async function createProblem(params: CreateProblemParams): Promise<Create
           throw new Error(`Failed to create rubric criteria: ${criteriaError.message}`);
         }
 
+        // Create teams and projects if provided
+
+        if (teams && teams.length > 0) {
+          try {
+            for (const teamData of teams) {
+              // Create team
+              const { data: createdTeam, error: teamError } = await supabase
+                .from('teams')
+                .insert({
+                  name: teamData.name.trim(),
+                  course_id: courseId,
+                })
+                .select('id')
+                .single();
+
+              if (teamError || !createdTeam) {
+                throw new Error(`Failed to create team "${teamData.name}": ${teamError?.message || 'Unknown error'}`);
+              }
+
+              const teamId = createdTeam.id;
+              // teamsCreated++;
+
+              // Add team members
+              const teamMemberships = teamData.studentIds.map(studentId => ({
+                team_id: teamId,
+                user_id: studentId,
+              }));
+
+              const { error: membershipError } = await supabase
+                .from('teams_users')
+                .insert(teamMemberships);
+
+              if (membershipError) {
+                throw new Error(`Failed to add members to team "${teamData.name}": ${membershipError.message}`);
+              }
+
+              // Create project for this team
+              const projectResult = await createProject({
+                problemId: problemId,
+                teamId: teamId,
+              });
+
+              if (!projectResult.success) {
+                throw new Error(`Failed to create project for team "${teamData.name}": ${projectResult.error}`);
+              }
+
+              // projectsCreated++;
+
+              // Generate invite token for this team
+              const inviteResult = await generateInviteToken({
+                teamId: teamId,
+              });
+
+              if (inviteResult.success) {
+                // invitesGenerated++;
+              } else {
+                console.warn(`Failed to generate invite for team "${teamData.name}": ${inviteResult.error}`);
+                // Don't fail the entire process for invite generation issues
+              }
+            }
+          } catch (teamErr) {
+            // Rollback: Delete the entire problem if team/project creation failed
+            await supabase.from('problems').delete().eq('id', problemId);
+            const errorMessage = teamErr instanceof Error ? teamErr.message : String(teamErr);
+            return createErrorResponse(`Problem created but team setup failed: ${errorMessage}`);
+          }
+        }
+
         // Success! Revalidate educator dashboard to show new problem
         revalidatePath('/educator/dashboard');
         revalidatePath('/educator/problems');
         revalidatePath('/dashboard');
+        revalidatePath('/student/dashboard'); // Students might see new projects
 
         return createIdResponse(problemId);
 
@@ -173,6 +272,59 @@ export async function createProblem(params: CreateProblemParams): Promise<Create
     // Handle unexpected error types
     const errorMessage = error instanceof Error ? error.message : String(error);
     return createErrorResponse(`Unexpected error creating problem: ${errorMessage}`);
+  }
+}
+
+/**
+ * Get all students available for team assignment in a course
+ * 
+ * Fetches all students who can be assigned to teams when creating a problem.
+ * Only accessible by educators.
+ * 
+ * @param courseId - Course ID to get students for
+ * @returns Promise resolving to QueryResult with student data
+ */
+export async function getStudentsInCourse(courseId: string): Promise<QueryResult<Array<{ id: string; name: string | null; email: string }>>> {
+  // Validate required parameters
+  if (!courseId || typeof courseId !== 'string') {
+    return createErrorResponse('Course ID is required and must be a valid string');
+  }
+
+  try {
+    // Verify user authentication and permissions
+    const user = await getAuthenticatedUser();
+    requireProjectCreationPermissions(user.role);
+    
+    const supabase = await createClient();
+
+    // Verify the course exists and user has access (RLS will handle permissions)
+    const { data: course, error: courseError } = await supabase
+      .from('courses')
+      .select('id, name')
+      .eq('id', courseId)
+      .single();
+
+    if (courseError || !course) {
+      return createErrorResponse('Course not found or you do not have permission to view it');
+    }
+
+    // Get all students (role-based filtering)
+    const { data: students, error: studentsError } = await supabase
+      .from('users')
+      .select('id, name, email')
+      .eq('role', 'student')
+      .order('name', { ascending: true });
+
+    if (studentsError) {
+      console.error('Failed to fetch students:', studentsError);
+      return createErrorResponse(`Failed to fetch students: ${studentsError.message}`);
+    }
+
+    return createSuccessResponse(students || []);
+  } catch (error) {
+    // Handle unexpected error types
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error fetching students: ${errorMessage}`);
   }
 }
 

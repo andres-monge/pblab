@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,14 +8,22 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { createProblem } from "@/lib/actions/problems";
-import { type CreateProblemParams, type RubricCriterionData } from "@/lib/types/problems";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { createProblem, getStudentsInCourse } from "@/lib/actions/problems";
+import { type CreateProblemParams, type RubricCriterionData, type TeamCreationData } from "@/lib/types/problems";
 import { getDefaultRubricTemplate } from "@/lib/shared/rubric-templates";
 import { Trash2, Plus } from "lucide-react";
 
 interface Course {
   id: string;
   name: string;
+}
+
+interface Student {
+  id: string;
+  name: string | null;
+  email: string;
 }
 
 interface CreateProblemFormProps {
@@ -43,8 +51,41 @@ export function CreateProblemForm({ courses }: CreateProblemFormProps) {
     getDefaultRubricTemplate().criteria
   );
   
+  // Teams state
+  const [teams, setTeams] = useState<TeamCreationData[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
+  
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load students when course is selected
+  useEffect(() => {
+    if (formData.courseId) {
+      loadStudents(formData.courseId);
+    } else {
+      setStudents([]);
+      setTeams([]);
+    }
+  }, [formData.courseId]);
+
+  const loadStudents = async (courseId: string) => {
+    setLoadingStudents(true);
+    setError(null);
+    
+    try {
+      const result = await getStudentsInCourse(courseId);
+      if (result.success) {
+        setStudents(result.data);
+      } else {
+        setError(`Failed to load students: ${result.error}`);
+      }
+    } catch {
+      setError("Failed to load students");
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -71,6 +112,32 @@ export function CreateProblemForm({ courses }: CreateProblemFormProps) {
       return;
     }
     setCriteria(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Team management functions
+  const addTeam = () => {
+    const newTeam: TeamCreationData = {
+      name: `Team ${teams.length + 1}`,
+      studentIds: [],
+    };
+    setTeams(prev => [...prev, newTeam]);
+  };
+
+  const removeTeam = (index: number) => {
+    setTeams(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleStudentToggle = (teamIndex: number, studentId: string, checked: boolean) => {
+    setTeams(prev => prev.map((team, i) => {
+      if (i === teamIndex) {
+        if (checked) {
+          return { ...team, studentIds: [...team.studentIds, studentId] };
+        } else {
+          return { ...team, studentIds: team.studentIds.filter(id => id !== studentId) };
+        }
+      }
+      return team;
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -107,6 +174,7 @@ export function CreateProblemForm({ courses }: CreateProblemFormProps) {
             sort_order: index, // Ensure proper ordering
           })),
         },
+        teams: teams.length > 0 ? teams : undefined,
       };
 
       const result = await createProblem(problemData);
@@ -259,6 +327,110 @@ export function CreateProblemForm({ courses }: CreateProblemFormProps) {
               The form is pre-loaded with a standard PBL rubric template. You can modify, add, or remove criteria as needed.
             </p>
           </div>
+
+          {/* Teams Section */}
+          {formData.courseId && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">Create Teams (Optional)</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Create teams and assign students to automatically generate projects and invite links.
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addTeam}
+                  disabled={loading || loadingStudents || students.length === 0}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Team
+                </Button>
+              </div>
+
+              {loadingStudents ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">Loading students...</p>
+                </div>
+              ) : students.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">No students found in this course</p>
+                </div>
+              ) : teams.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground">
+                    Click &quot;Add Team&quot; to create teams and assign students
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {teams.map((team, teamIndex) => (
+                    <Card key={teamIndex} className="border-l-4 border-l-green-500">
+                      <CardContent className="pt-4">
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium">{team.name}</h4>
+                              <Badge variant="outline">
+                                {team.studentIds.length} student{team.studentIds.length !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeTeam(teamIndex)}
+                              disabled={loading}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-sm font-medium">Assign Students</Label>
+                            <div className="max-h-32 overflow-y-auto space-y-2 border rounded-md p-2">
+                              {students.map((student) => {
+                                const isSelected = team.studentIds.includes(student.id);
+                                return (
+                                  <div key={student.id} className="flex items-center space-x-2">
+                                    <Checkbox
+                                      id={`student-${teamIndex}-${student.id}`}
+                                      checked={isSelected}
+                                      onCheckedChange={(checked) => 
+                                        handleStudentToggle(teamIndex, student.id, checked as boolean)
+                                      }
+                                      disabled={loading}
+                                    />
+                                    <Label 
+                                      htmlFor={`student-${teamIndex}-${student.id}`} 
+                                      className="flex-1 text-sm cursor-pointer"
+                                    >
+                                      <div className="flex flex-col">
+                                        <span>{student.name || 'No name'}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {student.email}
+                                        </span>
+                                      </div>
+                                    </Label>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  
+                  <p className="text-xs text-muted-foreground">
+                    Teams will be created with projects and invite links generated automatically.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Error Display */}
           {error && (
