@@ -224,15 +224,21 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 
 ---
 
-[ ] Step 29: **Implement Student Final Report Submission** **Task**: On the project workspace page, add a UI section that is only visible to students when the project is in the `research` or `post` phase. This UI will allow them to submit the URL for their final report. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `lib/actions/projects.ts`, `docs/prd.md` (Section 3.1, User Story 6) **Implementation Notes**:
+[X] Step 29: **Implement Student Final Report Submission** **Task**: On the project workspace page, add a UI section that is only visible to students when the project is in the `research` phase. This UI will allow them to submit the URL for their final report. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `lib/actions/projects.ts`, `docs/prd.md` (Section 3.1, User Story 6) **Implementation Notes**:
 
-1. In `app/p/[projectId]/page.tsx`, add a new component or section that is conditionally rendered based on `project.phase` and `user.role`.
-    
-2. This section should contain a simple form with one text input for the `reportUrl` and a submit button.
-    
-3. The form's `onSubmit` handler should call the existing `updateProjectReportUrl` server action.
-    
-4. Include the recommended user instruction: "💡 **Tip:** Set your document to 'Anyone with the link can view' so your educators won't need to request access.
+1. Created FinalReportSubmission Component:
+    - Form with URL input and submit button
+    - Shows current report URL when already submitted
+    - Includes helpful tip about Google Docs sharing settings
+    - Proper loading states and error handling
+  2. Updated Project Workspace Page:
+    - Research Phase: Students see artifacts interface AND final report submission form
+    - Post Phase: Both students and educators see read-only submitted report display
+    - Proper conditional rendering based on user role and project phase
+  3. Corrected Workflow Logic:
+    - Final report submission happens in research phase (not post)
+    - Submitting report automatically triggers research → post phase transition
+    - This aligns with the state machine where submitting the report IS the trigger for phase advancement
     
 
 ---

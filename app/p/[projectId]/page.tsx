@@ -4,6 +4,7 @@ import { getAuthenticatedUser } from "@/lib/actions/shared/authorization";
 import { LearningGoalEditor } from "@/components/pblab/project/learning-goal-editor";
 import { ProjectArtifacts } from "@/components/pblab/project/project-artifacts";
 import { AiTutorChat } from "@/components/pblab/ai/ai-tutor-chat";
+import { FinalReportSubmission } from "@/components/pblab/project/final-report-submission";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Database } from "@/lib/db.types";
@@ -14,6 +15,7 @@ interface ProjectData {
   id: string;
   phase: ProjectPhase;
   learning_goals: string | null;
+  final_report_url: string | null;
   team_id: string;
   problem: {
     id: string;
@@ -40,6 +42,7 @@ async function getProjectData(projectId: string, userId: string, userRole: strin
       id,
       phase,
       learning_goals,
+      final_report_url,
       team_id,
       problem:problems!inner (
         id,
@@ -191,19 +194,53 @@ export default async function ProjectWorkspace({
               // Other phase content
               <div className="space-y-6">
                 {project.phase === 'research' && (
-                  // Research phase - show artifacts interface
-                  <ProjectArtifacts
-                    projectId={project.id}
-                    currentUserId={user.id}
-                    currentUserRole={user.role}
-                  />
+                  <div className="space-y-6">
+                    {/* Research phase - show artifacts interface */}
+                    <ProjectArtifacts
+                      projectId={project.id}
+                      currentUserId={user.id}
+                      currentUserRole={user.role}
+                    />
+                    
+                    {/* Final Report Submission - Only for Students */}
+                    {user.role === 'student' && (
+                      <FinalReportSubmission
+                        projectId={project.id}
+                        currentReportUrl={project.final_report_url}
+                      />
+                    )}
+                  </div>
                 )}
                 
                 {project.phase === 'post' && (
-                  <div className="space-y-4">
-                    <p className="text-muted-foreground">
-                      Post-discussion and report submission components will be implemented in Step 27.
-                    </p>
+                  <div className="space-y-6">
+                    {/* Show submitted final report for all users */}
+                    {project.final_report_url && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Final Report</CardTitle>
+                          <CardDescription>
+                            {user.role === 'student' 
+                              ? 'Your team has submitted the final report. It is now ready for educator review.'
+                              : 'The team has submitted their final report for assessment.'
+                            }
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                            <span className="flex-1 text-sm break-all">{project.final_report_url}</span>
+                            <a
+                              href={project.final_report_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                            >
+                              View Report →
+                            </a>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
                     
                     {/* Show artifacts in read-only mode for post phase */}
                     <ProjectArtifacts
