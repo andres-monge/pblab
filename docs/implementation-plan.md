@@ -243,21 +243,25 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 
 ---
 
-[ ] Step 30: **COMPLEX: Create Backend for Educator Assessment** **Task**: Create a new server action, `saveAssessment`, that allows an educator to save their rubric-based feedback for a project. This action needs to be transactional, creating records in both the `assessments` and `assessment_scores` tables. **Suggested Files for Context**: `lib/db.types.ts`, `supabase/migrations/20250722133352_initial_schema.sql` (for table structure), `docs/prd.md` (Section 3.2, User Story 3) **Implementation Notes**:
+[x] Step 30: **COMPLEX: Create Backend for Educator Assessment** ✅ **Task**: Create a new server action, `saveAssessment`, that allows an educator to save their rubric-based feedback for a project. This action needs to be transactional, creating records in both the `assessments` and `assessment_scores` tables. **Suggested Files for Context**: `lib/db.types.ts`, `supabase/migrations/20250722133352_initial_schema.sql` (for table structure), `docs/prd.md` (Section 3.2, User Story 3) **Implementation Notes**:
 
-1. Create a new file `lib/actions/assessments.ts`.
-    
-2. Define the `saveAssessment` function, which should accept `projectId` and an array of scores, where each score object contains `criterion_id`, `score`, and `justification`.
-    
-3. The action must perform the following steps:
-    
-    - Authenticate the user and verify they are an educator with access to the project.
-        
-    - Create a new record in the `assessments` table linked to the project and assessor.
-        
-    - For each item in the scores array, create a corresponding record in the `assessment_scores` table, linked to the new assessment ID.
-        
-    - Wrap the database inserts in a transaction if possible to ensure atomicity.
+**✅ COMPLETED - All functionality implemented and tested with authenticated users**
+
+1. ✅ Found existing `lib/actions/assessments.ts` with fully implemented `saveAssessment` function
+2. ✅ Added phase validation to ensure assessments only happen in 'post' phase  
+3. ✅ Added `getProjectAssessmentData` function to fetch all data needed for UI (rubric criteria, existing assessments)
+4. ✅ Added `canEducatorAssessProject` lightweight permission check function
+5. ✅ All functions use proper authorization (educator must own course or be admin)
+6. ✅ Score validation ensures each score is between 1 and criterion's specific max_score
+7. ✅ Transactional implementation with rollback on failure
+8. ✅ **TESTED with authenticated users** - RLS policies work correctly
+
+**Key Features Delivered:**
+- Complete transactional assessment creation with automatic rollback
+- Comprehensive validation (phase, scores, permissions)
+- Helper functions for UI to fetch assessment data and check permissions
+- Full RLS policy compliance verified through testing
+- TypeScript types for all assessment operations
         
 
 ---
