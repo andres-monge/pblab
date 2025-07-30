@@ -162,7 +162,7 @@ Summary: Built complete frontend interface with authentication, role-based dashb
 
 This phase focuses on building the remaining frontend UI and wiring up the existing backend actions to complete the core user flows required by @prd.md and @comp-criteria.
 
-[ ] Step 27: **IMPORTANT: Fix Project Workspace Layout** **Task**: Relocate the project workspace page `p/[projectId]` to be a root-level route group, outside of `(main)`. Create a new, dedicated layout for this route that includes the `<Header />` but **not** the `<Sidebar />`. This is a foundational step that unblocks all subsequent work on the project page. **Suggested Files for Context**: `app/(main)/p/[projectId]/page.tsx`, `app/(main)/layout.tsx`, `app/(main)/student/dashboard/page.tsx`, `docs/tech-spec.md` (Section 8.1, Component Architecture) **Implementation Notes**:
+[x] Step 27: **IMPORTANT: Fix Project Workspace Layout** **Task**: Relocate the project workspace page `p/[projectId]` to be a root-level route group, outside of `(main)`. Create a new, dedicated layout for this route that includes the `<Header />` but **not** the `<Sidebar />`. This is a foundational step that unblocks all subsequent work on the project page. **Suggested Files for Context**: `app/(main)/p/[projectId]/page.tsx`, `app/(main)/layout.tsx`, `app/(main)/student/dashboard/page.tsx`, `docs/tech-spec.md` (Section 8.1, Component Architecture) **Implementation Notes**:
 
 1. Move the `app/(main)/p` directory to `app/p`.
     
@@ -175,20 +175,92 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 
 ---
 
-[ ] Step 28: **IMPORTANT: Implement "Create Problem" Page UI** **Task**: Build the frontend page and form component for educators to create new PBL problems. The form must allow defining a title, description, and a dynamic list of rubric criteria. **Suggested Files for Context**: `lib/actions/problems.ts`, `docs/prd.md` (Section 3.2, User Story 1), `docs/comp-criteria.md` (Core Requirements) **Implementation Notes**:
+[x] Step 28: **IMPORTANT: Implement "Create Problem" Page UI** ✅ **Task**: Build the frontend page and form component for educators to create new PBL problems. The form must allow defining a title, description, and a dynamic list of rubric criteria. **Suggested Files for Context**: `lib/actions/problems.ts`, `docs/prd.md` (Section 3.2, User Story 1), `docs/comp-criteria.md` (Core Requirements) **Implementation Notes**:
 
-1. Create a new page at `app/(main)/educator/problems/new/page.tsx`.
+**✅ COMPLETED - All functionality implemented and tested with authenticated users**
+
+1. ✅ Created page at `app/(main)/educator/problems/new/page.tsx` with course data fetching
+2. ✅ Created client component `components/pblab/educator/create-problem-form.tsx` with full functionality  
+3. ✅ Implemented form inputs for `title` (text) and `description` (textarea)
+4. ✅ Implemented dynamic rubric section with add/remove criteria functionality
+5. ✅ Integrated with existing `createProblem` server action with proper error handling
+6. ✅ Added success/error states with user feedback and navigation
+7. ✅ Added "Create Problem" button to educator dashboard for easy access
+8. ✅ **TESTED with authenticated educator user** - all functionality verified working
+
+**Key Features Delivered:**
+- Pre-loaded with 5-criterion PBL rubric template
+- Dynamic add/remove criteria with validation (minimum 1 criterion)
+- Responsive design with proper form validation
+- Success redirect to educator dashboard
+- Complete integration with existing backend infrastructure
+- Authenticated user testing confirms RLS policies work correctly
     
-2. Create a new client component `components/pblab/educator/create-problem-form.tsx`.
-    
-3. The form should have inputs for `title` (text) and `description` (textarea).
-    
-4. For the rubric, implement a section where the educator can dynamically add/remove criteria. Each criterion should have a `criterion_text` (textarea) and a `max_score` (number input, defaulting to 5).
-    
-5. On submit, the form should gather all the data into the format expected by the `createProblem` server action and call it.
-    
-6. Handle success and error states, showing appropriate feedback to the user.
-    
+
+---
+
+[ ] Step 28.1: **CRITICAL: Complete Problem-to-Project Workflow** **Task**: Extend the "Create Problem" page to include team creation and student assignment, completing the missing link between educator problem creation and student project work. This addresses the fundamental gap where educators can create problems but students cannot access them without manual admin intervention. **Suggested Files for Context**: `components/pblab/educator/create-problem-form.tsx`, `lib/actions/problems.ts`, `lib/actions/teams.ts`, `lib/actions/projects.ts`, `docs/prd.md` (Section 3.1, User Story 1 & 2), `docs/tech-spec.md` (Section 3.1 & 3.2) **Implementation Notes**:
+
+**Problem Context**: Currently, educators can create problems (Step 28) but there's no mechanism for students to discover and start working on them. This creates a broken user flow where problems exist but students have no projects to work on.
+
+**RLS & Database Compatibility**: ✅ **Fully Supported**
+- Educators can create teams in their courses (RLS policy lines 118-129)
+- Educators can manage team membership (RLS policy lines 191-212)
+- Educators can create projects (RLS policy lines 305-320)
+- Existing invite system in `lib/actions/teams.ts` supports JWT-based invitations
+
+**Implementation Steps**:
+
+1. **Enhance Create Problem Form** (`components/pblab/educator/create-problem-form.tsx`)
+   - Add new expandable section: "Create Teams for This Problem" (after rubric section)
+   - Include team creation interface with dynamic add/remove team functionality
+   - Add student selection interface for each team (dropdown/checkbox selection)
+   - Display invite link generation status and preview
+
+2. **Extend Problem Creation Action** (`lib/actions/problems.ts`)
+   - Add optional `teams` parameter to `CreateProblemParams` interface
+   - After successful problem creation, iterate through teams array
+   - Create team records using existing RLS-compliant operations
+   - Create project instances linking each team to the new problem
+   - Generate invite tokens for selected students per team
+
+3. **Create Supporting Components**
+   - `<TeamCreator />`: Dynamic team creation with name input and student assignment
+   - `<StudentSelector />`: Multi-select interface for choosing students per team
+   - `<InviteLinkGenerator />`: Display and copy invite links for each team
+   - Integrate with existing `generateInviteToken()` from `lib/actions/teams.ts`
+
+4. **Database Transaction Flow**
+   - Problem creation (existing)
+   - Rubric creation (existing) 
+   - Team creation (new, per team in array)
+   - Team membership assignment (new, per student selection)
+   - Project creation (new, linking team to problem)
+   - Invite token generation (new, per team)
+   - All wrapped in comprehensive error handling with rollback
+
+5. **UI/UX Enhancements**
+   - Progressive disclosure: teams section only shows after successful problem creation
+   - Real-time invite link generation with copy-to-clipboard functionality
+   - Clear feedback on successful team creation and project assignment
+   - Email/notification system integration for automatic invite delivery
+
+**Success Criteria**:
+- Educator creates problem with teams → Teams and projects auto-created → Students receive invites → Students join teams → Students see active projects on dashboard
+- Complete end-to-end workflow from problem creation to student engagement
+- No manual admin intervention required for standard educator-managed courses
+
+**Technical Benefits**:
+- Leverages existing RLS policies and database constraints
+- Builds on proven invite system and project creation logic
+- Maintains educator autonomy over their course management
+- Eliminates dependency on admin dashboard for routine operations
+
+**User Experience Impact**:
+- Natural workflow: educators control complete problem-to-project lifecycle
+- Immediate value: students get projects right after problem creation
+- Scalable: supports multiple teams per problem with varied student assignments
+- Professional: matches real-world educational administration patterns
 
 ---
 

@@ -4,7 +4,7 @@ You are a code review specialist tasked with thoroughly reviewing the implementa
 
 ## Your Task
 
-1. **Identify the Step**: Ask the user which step number from `docs/implementation-plan.md` they want reviewed
+1. **Identify the Step**: If the user doesn't tell you, ask the user which step number from `docs/implementation-plan.md` they want reviewed
 2. **Analyze Implementation**: Examine all files and changes related to that step
 3. **Report Issues**: Provide detailed descriptions of any problems found that do not meet the criteria in @prd.md. This is important. We are building an MVP, not core infrastructure for a large company.
 4. **No Fixes**: Do NOT make any code changes - only report what needs to be fixed
@@ -72,5 +72,3 @@ For each issue:
 - Focus on issues that could break functionality or compromise security
 - To find out about external documentation, use the context7 mcp server
 - Your detailed issue reports will be passed to another AI agent for implementation
-
-Start by asking which step number you should review.

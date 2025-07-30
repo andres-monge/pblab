@@ -43,43 +43,41 @@ The project will be built upon the provided Next.js starter template. New direct
 
 /
 ├── app/
-│   ├── (auth)/                  # Auth pages (login, signup) - from template
+│   ├── (auth)/                 # Auth pages (login, signup)
 │   ├── (main)/
-│   │   ├── dashboard/           # Main authenticated app view
-│   │   │   ├── layout.tsx       # Dashboard layout (sidebar, header)
-│   │   │   └── page.tsx         # Role-based redirect or default view
-│   │   ├── admin/                 # Admin-specific views
+│   │   ├── dashboard/          # Main authenticated app view
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   ├── admin/              # Admin-specific views
 │   │   │   └── dashboard/
-│   │   │       └── page.tsx       # UI for user/team management
-│   │   ├── educator/            # Educator-specific views
+│   │   │       └── page.tsx
+│   │   ├── educator/           # Educator-specific views
 │   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx     # View of all student teams/projects
+│   │   │   │   └── page.tsx
 │   │   │   └── problems/
-│   │   │       ├── new/page.tsx # Form to create a new PBL problem
-│   │   │       └── [id]/page.tsx# View/edit a problem definition
-│   │   └── student/             # Student-specific views
+│   │   │       ├── new/
+│   │   │       │   └── page.tsx  # Form to create a new PBL problem
+│   │   │       └── [id]/page.tsx # View/edit a problem definition
+│   │   └── student/            # Student-specific views
 │   │       └── dashboard/
-│   │           └── page.tsx     # View of student's projects
-│   ├── p/[projectId]/           # Individual project workspace
-│   │   ├── page.tsx             # Main project view
-│   │   └── layout.tsx           # Layout specific to a project view
+│   │           └── page.tsx
+│   ├── p/[projectId]/          # Individual project workspace (Corrected Location)
+│   │   ├── page.tsx
+│   │   └── layout.tsx
 │   ├── api/
 │   │   ├── ai/
-│   │   │   ├── tutor/route.ts   # Endpoint for AI PBL Tutor chat
-│   │   │   ├── assess/route.ts  # Endpoint for AI-assisted grading
-│   │   │   └── suggest-goals/route.ts # Endpoint for AI Learning Goal suggestions
-│   │   └── drive/
-│   │       ├── export/route.ts  # Public Google Sheets export
-│   │       └── picker/route.ts  # Picker-based file export
-│   ├── layout.tsx               # Root layout (from template)
-│   └── page.tsx                 # Public landing page (from template)
+│   │   │   ├── tutor/route.ts
+│   │   │   ├── assess/route.ts          # (REMOVED - AI-assisted grading is post-MVP)
+│   │   │   └── suggest-goals/route.ts
+│   │   └── drive/                       # (REMOVED - Complex Drive integration replaced with simple URL/iframe)
+│   │       ├── export/route.ts
+│   │       └── picker/route.ts
+│   ├── layout.tsx
+│   └── page.tsx
 ├── components/
-│   ├── pblab/                   # PBLab-specific, reusable components
-│   │   ├── header.tsx           # App header with nav, user menu, notifications
-│   │   ├── sidebar.tsx          # Navigation sidebar for dashboard
-│   │   ├── pblab-logo.tsx       # PBLab logo component
-│   │   ├── auth/                # Authentication components
-│   │   │   └── auth-form.tsx    # Reusable magic link auth form
+│   ├── pblab/                  # PBLab-specific, reusable components
+│   │   ├── header.tsx
+│   │   ├── sidebar.tsx
 │   │   ├── project/
 │   │   │   ├── artifact-card.tsx
 │   │   │   ├── artifact-uploader.tsx
@@ -87,44 +85,28 @@ The project will be built upon the provided Next.js starter template. New direct
 │   │   │   ├── learning-goal-editor.tsx
 │   │   │   └── phase-card.tsx
 │   │   ├── educator/
+│   │   │   ├── create-problem-form.tsx  # (NEW - Step 28) Form component for creating PBL problems with rubric
 │   │   │   ├── project-kanban.tsx
-│   │   │   └── rubric-editor.tsx
+│   │   │   └── rubric-assessment.tsx  # (NEW/REPURPOSED - For manual feedback entry)
 │   │   ├── ai/
 │   │   │   └── ai-tutor-chat.tsx
-│   │   └── notifications/
-│   │       └── notifications-indicator.tsx
-│   └── ui/                      # shadcn/ui components (from template)
+│   │   └── ...
+│   └── ui/                     # shadcn/ui components
 ├── lib/
-│   ├── actions/                 # Server Actions for DB mutations
-│   │   ├── shared/              # Common utilities and patterns
-│   │   │   ├── auth-helpers.ts  # Reusable authorization functions
-│   │   │   ├── validation.ts    # Common parameter validation
-│   │   │   └── responses.ts     # Standardized response types
+│   ├── actions/                # Server Actions for DB mutations
 │   │   ├── artifacts/
-│   │   │   ├── crud.ts          # Core CRUD operations
-│   │   │   ├── comments.ts      # Comment functionality
-│   │   │   └── permissions.ts   # Authorization helpers
-│   │   ├── projects/
-│   │   │   ├── core.ts          # Basic project operations
-│   │   │   ├── phases.ts        # Phase management logic
-│   │   │   └── reports.ts       # Report handling
-│   │   ├── teams.ts             # Team management (appropriate size)
-│   │   ├── notifications.ts     # Notification management (appropriate size)
-│   │   └── ai.ts                # AI interaction logging
-│   ├── security/
-│   │   ├── file-validation.ts   # File type and security validation
-│   │   ├── permissions.ts       # Permission checking utilities
-│   │   └── rate-limiting.ts     # Rate limiting helpers
+│   │   ├── projects.ts
+│   │   ├── problems.ts         # (UPDATED - Step 28) Enhanced with createProblem action
+│   │   ├── teams.ts
+│   │   ├── notifications.ts
+│   │   ├── assessments.ts      # (NEW - For saving manual rubric feedback)
+│   │   └── ai.ts
 │   ├── types/
-│   │   ├── actions.ts           # Action-specific types
-│   │   ├── responses.ts         # Standardized response interfaces
-│   │   └── security.ts          # Security-related types
-│   ├── db.ts                    # Supabase client and query helpers
-│   └── utils.ts                 # Utility functions (from template)
-├── public/                      # Static assets
-├── scripts/
-│   └── seed.ts                  # Script to seed DB with sample data
-└── ...                          # Other config files (from template)
+│   │   └── problems.ts         # (NEW - Step 28) Type definitions for problem creation
+│   ├── shared/
+│   │   └── rubric-templates.ts # (NEW - Step 28) Default PBL rubric templates
+│   ├── ...
+└── ...                         # Other config files
 
 ---
 

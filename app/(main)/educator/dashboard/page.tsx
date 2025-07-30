@@ -1,6 +1,8 @@
 import { getEducatorDashboardData } from "@/lib/actions/dashboard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { Plus } from "lucide-react";
 
 export default async function EducatorDashboard() {
   const result = await getEducatorDashboardData();
@@ -29,11 +31,19 @@ export default async function EducatorDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Educator Dashboard</h1>
-        <p className="text-muted-foreground">
-          Manage your courses, problems, and track student progress from here.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Educator Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage your courses, problems, and track student progress from here.
+          </p>
+        </div>
+        <Link href="/educator/problems/new">
+          <Button>
+            <Plus className="w-4 h-4 mr-2" />
+            Create Problem
+          </Button>
+        </Link>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
