@@ -1,33 +1,92 @@
-import { getEducatorDashboardData } from "@/lib/actions/dashboard";
+"use client";
+
+import { useState, useEffect } from "react";
+import { getEducatorDashboardData, type EducatorDashboardData } from "@/lib/actions/dashboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 
-export default async function EducatorDashboard() {
-  const result = await getEducatorDashboardData();
-  
-  // Handle error case
-  if (!result.success) {
+export default function EducatorDashboard() {
+  const [data, setData] = useState<EducatorDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedActiveProjects, setExpandedActiveProjects] = useState(false);
+  const [expandedPendingAssessments, setExpandedPendingAssessments] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const result = await getEducatorDashboardData();
+        if (result.success) {
+          setData(result.data);
+        } else {
+          setError("Failed to load dashboard data. Please try refreshing the page.");
+        }
+      } catch {
+        setError("Failed to load dashboard data. Please try refreshing the page.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadData();
+  }, []);
+
+  if (loading) {
     return (
       <div className="space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Educator Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage your courses, problems, and track student progress from here.
-          </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Educator Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage your courses, problems, and track student progress from here.
+            </p>
+          </div>
+          <Link href="/educator/problems/new">
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Problem
+            </Button>
+          </Link>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Educator Dashboard</h1>
+            <p className="text-muted-foreground">
+              Manage your courses, problems, and track student progress from here.
+            </p>
+          </div>
+          <Link href="/educator/problems/new">
+            <Button>
+              <Plus className="w-4 h-4 mr-2" />
+              Create Problem
+            </Button>
+          </Link>
         </div>
         
         <div className="rounded-lg border p-6 text-center">
           <p className="text-sm text-destructive">
-            Failed to load dashboard data. Please try refreshing the page.
+            {error}
           </p>
         </div>
       </div>
     );
   }
 
-  const data = result.data;
+  if (!data) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -78,7 +137,7 @@ export default async function EducatorDashboard() {
             </p>
           ) : (
             <div className="mt-3 space-y-2">
-              {data.activeProjects.slice(0, 4).map((project) => (
+              {(expandedActiveProjects ? data.activeProjects : data.activeProjects.slice(0, 4)).map((project) => (
                 <div key={project.id} className="flex items-center justify-between">
                   <div>
                     <Link 
@@ -97,9 +156,17 @@ export default async function EducatorDashboard() {
                 </div>
               ))}
               {data.activeProjects.length > 4 && (
-                <p className="text-xs text-muted-foreground">
-                  +{data.activeProjects.length - 4} more projects
-                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedActiveProjects(!expandedActiveProjects)}
+                  className="text-xs text-muted-foreground h-auto p-1 hover:text-foreground"
+                >
+                  {expandedActiveProjects 
+                    ? "Show less" 
+                    : `+${data.activeProjects.length - 4} more projects`
+                  }
+                </Button>
               )}
             </div>
           )}
@@ -114,7 +181,7 @@ export default async function EducatorDashboard() {
             </p>
           ) : (
             <div className="mt-3 space-y-2">
-              {data.pendingAssessments.slice(0, 3).map((assessment) => (
+              {(expandedPendingAssessments ? data.pendingAssessments : data.pendingAssessments.slice(0, 3)).map((assessment) => (
                 <div key={assessment.id} className="space-y-1">
                   <Link 
                     href={`/p/${assessment.id}`}
@@ -133,9 +200,17 @@ export default async function EducatorDashboard() {
                 </div>
               ))}
               {data.pendingAssessments.length > 3 && (
-                <p className="text-xs text-muted-foreground">
-                  +{data.pendingAssessments.length - 3} more pending
-                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedPendingAssessments(!expandedPendingAssessments)}
+                  className="text-xs text-muted-foreground h-auto p-1 hover:text-foreground"
+                >
+                  {expandedPendingAssessments 
+                    ? "Show less" 
+                    : `+${data.pendingAssessments.length - 3} more pending`
+                  }
+                </Button>
               )}
             </div>
           )}

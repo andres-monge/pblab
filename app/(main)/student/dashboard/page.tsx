@@ -1,12 +1,54 @@
-import { getStudentDashboardData } from "@/lib/actions/dashboard";
+"use client";
+
+import { useState, useEffect } from "react";
+import { getStudentDashboardData, type StudentDashboardData } from "@/lib/actions/dashboard";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
-export default async function StudentDashboard() {
-  const result = await getStudentDashboardData();
-  
-  // Handle error case
-  if (!result.success) {
+export default function StudentDashboard() {
+  const [data, setData] = useState<StudentDashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [expandedActiveProjects, setExpandedActiveProjects] = useState(false);
+  const [expandedNotifications, setExpandedNotifications] = useState(false);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        const result = await getStudentDashboardData();
+        if (result.success) {
+          setData(result.data);
+        } else {
+          setError("Failed to load dashboard data. Please try refreshing the page.");
+        }
+      } catch {
+        setError("Failed to load dashboard data. Please try refreshing the page.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadData();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Student Dashboard</h1>
+          <p className="text-muted-foreground">
+            Welcome to your learning dashboard. Here you can track your progress and access your projects.
+          </p>
+        </div>
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
     return (
       <div className="space-y-6">
         <div>
@@ -18,14 +60,16 @@ export default async function StudentDashboard() {
         
         <div className="rounded-lg border p-6 text-center">
           <p className="text-sm text-destructive">
-            Failed to load dashboard data. Please try refreshing the page.
+            {error}
           </p>
         </div>
       </div>
     );
   }
 
-  const data = result.data;
+  if (!data) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
@@ -46,7 +90,7 @@ export default async function StudentDashboard() {
             </p>
           ) : (
             <div className="mt-3 space-y-2">
-              {data.activeProjects.slice(0, 3).map((project) => (
+              {(expandedActiveProjects ? data.activeProjects : data.activeProjects.slice(0, 3)).map((project) => (
                 <div key={project.id} className="flex items-center justify-between">
                   <div>
                     <Link 
@@ -65,9 +109,17 @@ export default async function StudentDashboard() {
                 </div>
               ))}
               {data.activeProjects.length > 3 && (
-                <p className="text-xs text-muted-foreground">
-                  +{data.activeProjects.length - 3} more projects
-                </p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedActiveProjects(!expandedActiveProjects)}
+                  className="text-xs text-muted-foreground h-auto p-1 hover:text-foreground"
+                >
+                  {expandedActiveProjects 
+                    ? "Show less" 
+                    : `+${data.activeProjects.length - 3} more projects`
+                  }
+                </Button>
               )}
             </div>
           )}
@@ -88,7 +140,7 @@ export default async function StudentDashboard() {
                 </Badge>
               </div>
               <div className="space-y-2">
-                {data.notifications.recent.slice(0, 2).map((notification) => (
+                {(expandedNotifications ? data.notifications.recent : data.notifications.recent.slice(0, 2)).map((notification) => (
                   <div key={notification.id} className="text-sm">
                     <p className="font-medium">
                       {notification.actor.name || notification.actor.email}
@@ -98,6 +150,19 @@ export default async function StudentDashboard() {
                     </p>
                   </div>
                 ))}
+                {data.notifications.recent.length > 2 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setExpandedNotifications(!expandedNotifications)}
+                    className="text-xs text-muted-foreground h-auto p-1 hover:text-foreground"
+                  >
+                    {expandedNotifications 
+                      ? "Show less" 
+                      : `+${data.notifications.recent.length - 2} more notifications`
+                    }
+                  </Button>
+                )}
               </div>
             </div>
           )}
