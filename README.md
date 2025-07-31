@@ -65,7 +65,17 @@ The application includes pre-seeded test accounts for evaluation purposes. All a
 - **Password:** `password123`
 - **Role:** Join teams, collaborate on projects, submit artifacts
 
-> **Authentication Strategy:** The platform supports both magic link (email-only) authentication for production use and password authentication for testing/demo purposes. Magic links provide a seamless user experience while passwords enable rapid testing and evaluation.
+In order to test the different phases of the prepopulated examples:
+
+Team Alpha (students 1 & 2):
+  - Outbreak Simulator: pre phase
+  - EcoBalance: research phase
+
+  Team Beta (students 3 & 4):
+  - Outbreak Simulator: research phase
+  - EcoBalance: pre phase
+
+> **Authentication Strategy:** The platform supports both magic link authentication for production use and password authentication for testing/demo purposes. Magic links provide a seamless user experience while passwords enable rapid testing and evaluation.
 
 ## <� Testing the Student Invite Feature
 

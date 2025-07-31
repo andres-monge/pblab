@@ -13,6 +13,7 @@ type ProblemInsert = Database['public']['Tables']['problems']['Insert'];
 type RubricInsert = Database['public']['Tables']['rubrics']['Insert'];
 type RubricCriteriaInsert = Database['public']['Tables']['rubric_criteria']['Insert'];
 type ProjectInsert = Database['public']['Tables']['projects']['Insert'];
+type ArtifactInsert = Database['public']['Tables']['artifacts']['Insert'];
 
 // Supabase Auth User type
 type AuthUser = {
@@ -88,7 +89,10 @@ export async function seedDatabase() {
     await assignStudentsToTeams(teamIds, users);
     
     // Step 6: Create project instances (depends on both teams and problems)
-    await createSampleProjects(problemIds, teamIds);
+    const projectIds = await createSampleProjects(problemIds, teamIds);
+    
+    // Step 7: Create sample artifacts for research phase projects
+    await createSampleArtifacts(projectIds, users);
     
     console.log('🎉 Database seeding completed successfully!');
     
@@ -430,7 +434,7 @@ async function createRubrics(problemIds: string[]) {
 /**
  * Create sample projects (problem instances assigned to teams)
  */
-async function createSampleProjects(problemIds: string[], teamIds: string[]) {
+async function createSampleProjects(problemIds: string[], teamIds: string[]): Promise<string[]> {
   console.log('🚀 Creating sample projects...');
   
   const projects: ProjectInsert[] = [
@@ -448,19 +452,19 @@ async function createSampleProjects(problemIds: string[], teamIds: string[]) {
       team_id: teamIds[0],
       phase: 'research'
     },
-    // Team Beta - Outbreak Simulator (pre phase for testing learning goals)
+    // Team Beta - Outbreak Simulator (research phase)
     {
       id: '00000000-0000-0000-0000-000000000502',
       problem_id: problemIds[0],
       team_id: teamIds[1],
-      phase: 'pre' // Pre phase for testing learning goal editor
+      phase: 'research'
     },
-    // Team Beta - EcoBalance
+    // Team Beta - EcoBalance (pre phase for testing learning goals)
     {
       id: '00000000-0000-0000-0000-000000000503',
       problem_id: problemIds[1],
       team_id: teamIds[1],
-      phase: 'research'
+      phase: 'pre' // Pre phase for testing learning goal editor
     }
   ];
 
@@ -473,6 +477,85 @@ async function createSampleProjects(problemIds: string[], teamIds: string[]) {
   }
   
   console.log('✅ Created 4 projects (both teams working on both problems)');
+  return projects.map(project => project.id!);
+}
+
+/**
+ * Create sample artifacts for research phase projects
+ * Adds realistic artifacts that demonstrate the full PBL workflow
+ */
+async function createSampleArtifacts(projectIds: string[], users: AuthUser[]) {
+  console.log('📎 Creating sample artifacts...');
+  
+  // Find students for artifact uploaders
+  const students = users.filter(u => u.user_metadata?.role === 'student');
+  if (students.length < 4) {
+    throw new Error('Need at least 4 students for artifact uploaders');
+  }
+
+  // Project mapping based on our seed data:
+  // projectIds[0] = Team Alpha - Outbreak Simulator (pre phase)
+  // projectIds[1] = Team Alpha - EcoBalance (research phase) ✓
+  // projectIds[2] = Team Beta - Outbreak Simulator (research phase) ✓
+  // projectIds[3] = Team Beta - EcoBalance (pre phase)
+
+  const artifacts: ArtifactInsert[] = [
+    // Team Alpha - EcoBalance (research phase) artifacts
+    {
+      project_id: projectIds[1], // Team Alpha EcoBalance
+      title: 'Population Dynamics Time-Series Analysis',
+      type: 'link',
+      url: 'https://www.tigerdata.com/blog/what-is-a-time-series-graph-with-examples',
+      uploader_id: students[0].id // Student 1
+    },
+    {
+      project_id: projectIds[1], // Team Alpha EcoBalance  
+      title: 'Predator-Prey Ecosystem Explainer Video',
+      type: 'video',
+      url: 'https://www.youtube.com/watch?v=DDEvlLa9z_U',
+      uploader_id: students[1].id // Student 2
+    },
+    {
+      project_id: projectIds[1], // Team Alpha EcoBalance
+      title: 'Lotka-Volterra Implementation Repository',
+      type: 'code',
+      url: 'https://github.com/NiLaScience/Vibecoding-Sidequest-Starterpack/blob/main/projects/02_PBLab.md',
+      uploader_id: students[0].id // Student 1
+    },
+
+    // Team Beta - Outbreak Simulator (research phase) artifacts
+    {
+      project_id: projectIds[2], // Team Beta Outbreak Simulator
+      title: 'Epidemiological Data & Parameters',
+      type: 'spreadsheet',
+      url: 'https://docs.google.com/spreadsheets/d/1yPy8F2UWjDfVXs6N_L9xql7xcEae8bnb17CGqfqxJo8/edit?usp=sharing',
+      uploader_id: students[2].id // Student 3
+    },
+    {
+      project_id: projectIds[2], // Team Beta Outbreak Simulator
+      title: 'SIR Model Implementation Repository', 
+      type: 'code',
+      url: 'https://github.com/NiLaScience/Vibecoding-Sidequest-Starterpack/blob/main/projects/02_PBLab.md',
+      uploader_id: students[3].id // Student 4
+    },
+    {
+      project_id: projectIds[2], // Team Beta Outbreak Simulator
+      title: 'Disease Spread Simulation Demo',
+      type: 'image',
+      url: 'https://assets.weforum.org/editor/iR4SppnF7yJa9516DxLgDRLcoD5hv4dXjruC1XtrucE.gif',
+      uploader_id: students[2].id // Student 3
+    }
+  ];
+
+  const { error } = await supabase
+    .from('artifacts')
+    .upsert(artifacts, { onConflict: 'id' });
+
+  if (error) {
+    throw new Error(`Failed to create artifacts: ${error.message}`);
+  }
+  
+  console.log('✅ Created 6 sample artifacts for research phase projects');
 }
 
 // Run the seeding script
