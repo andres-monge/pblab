@@ -28,6 +28,19 @@ export interface StudentDashboardData {
     };
     updated_at: string;
   }>;
+  completedProjects: Array<{
+    id: string;
+    phase: ProjectPhase;
+    problem: {
+      id: string;
+      title: string;
+    };
+    team: {
+      id: string;
+      name: string;
+    };
+    updated_at: string;
+  }>;
   notifications: {
     unread_count: number;
     recent: Array<{
@@ -62,6 +75,17 @@ export interface EducatorDashboardData {
     problem_count: number;
   }>;
   activeProjects: Array<{
+    id: string;
+    phase: ProjectPhase;
+    problem: {
+      title: string;
+    };
+    team: {
+      name: string;
+    };
+    updated_at: string;
+  }>;
+  completedProjects: Array<{
     id: string;
     phase: ProjectPhase;
     problem: {
@@ -163,6 +187,32 @@ export async function getStudentDashboardData(): Promise<QueryResult<StudentDash
       throw new Error(`Failed to fetch projects: ${projectsError.message}`);
     }
 
+    // Fetch student's completed projects
+    const { data: completedProjects, error: completedError } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        phase,
+        updated_at,
+        problem:problems(
+          id,
+          title
+        ),
+        team:teams(
+          id,
+          name
+        )
+      `)
+      .in('team_id', teamIds.length > 0 ? teamIds : [''])
+      .eq('phase', 'closed')
+      .order('updated_at', { ascending: false })
+      .limit(10);
+
+    if (completedError) {
+      console.error('Failed to fetch completed projects:', completedError);
+      throw new Error(`Failed to fetch completed projects: ${completedError.message}`);
+    }
+
     // Fetch unread notifications count and recent notifications
     const { data: notifications, error: notificationsError } = await supabase
       .from('notifications')
@@ -209,6 +259,19 @@ export async function getStudentDashboardData(): Promise<QueryResult<StudentDash
 
     const dashboardData: StudentDashboardData = {
       activeProjects: projects?.map(p => ({
+        id: p.id,
+        phase: p.phase,
+        problem: {
+          id: p.problem.id,
+          title: p.problem.title,
+        },
+        team: {
+          id: p.team.id,
+          name: p.team.name,
+        },
+        updated_at: p.updated_at,
+      })) || [],
+      completedProjects: completedProjects?.map(p => ({
         id: p.id,
         phase: p.phase,
         problem: {
@@ -312,6 +375,31 @@ export async function getEducatorDashboardData(): Promise<QueryResult<EducatorDa
       throw new Error(`Failed to fetch projects: ${projectsError.message}`);
     }
 
+    // Fetch completed projects for educator's courses
+    const { data: completedProjects, error: completedProjectsError } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        phase,
+        updated_at,
+        problem:problems!inner(
+          title,
+          course_id
+        ),
+        team:teams(
+          name
+        )
+      `)
+      .in('problem.course_id', courseIds)
+      .eq('phase', 'closed')
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    if (completedProjectsError) {
+      console.error('Failed to fetch completed projects:', completedProjectsError);
+      throw new Error(`Failed to fetch completed projects: ${completedProjectsError.message}`);
+    }
+
     // Fetch projects pending assessment (in post phase with reports)
     const { data: pendingAssessments, error: assessmentsError } = await supabase
       .from('projects')
@@ -344,6 +432,17 @@ export async function getEducatorDashboardData(): Promise<QueryResult<EducatorDa
         problem_count: c.problems?.[0]?.count || 0,
       })) || [],
       activeProjects: projects?.map(p => ({
+        id: p.id,
+        phase: p.phase,
+        problem: {
+          title: p.problem.title,
+        },
+        team: {
+          name: p.team.name,
+        },
+        updated_at: p.updated_at,
+      })) || [],
+      completedProjects: completedProjects?.map(p => ({
         id: p.id,
         phase: p.phase,
         problem: {

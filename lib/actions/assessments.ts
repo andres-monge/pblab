@@ -633,3 +633,242 @@ export async function canEducatorAssessProject(
     return createErrorResponse(`Unexpected error checking assessment permission: ${errorMessage}`);
   }
 }
+
+/**
+ * Assessment results for closed projects (viewable by all authorized users)
+ */
+export interface ProjectAssessmentResults {
+  /** Project details */
+  project: {
+    id: string;
+    phase: Database["public"]["Enums"]["project_phase"];
+    final_report_url: string | null;
+    problem_title: string;
+  };
+  /** Rubric criteria with scores */
+  rubricResults: Array<{
+    criterion: {
+      id: string;
+      criterion_text: string;
+      max_score: number;
+      sort_order: number;
+    };
+    score: number;
+    justification: string | null;
+  }>;
+  /** Assessment metadata */
+  assessment: {
+    id: string;
+    assessor_name: string;
+    overall_feedback: string | null;
+    status: AssessmentStatus;
+    created_at: string;
+  };
+}
+
+/**
+ * Get assessment results for a closed project
+ * 
+ * This function fetches the final assessment results for a project that has been
+ * completed and assessed. Unlike getProjectAssessmentData, this is designed for
+ * viewing completed assessments and is accessible to both students and educators
+ * who have access to the project.
+ * 
+ * @param projectId - ID of the project to get results for
+ * @returns Promise resolving to assessment results or error
+ */
+export async function getProjectAssessmentResults(
+  projectId: string
+): Promise<QueryResult<ProjectAssessmentResults>> {
+  try {
+    // Validate parameters
+    validateProjectId(projectId);
+
+    // Get authenticated user
+    const user = await getAuthenticatedUser();
+
+    const supabase = await createClient();
+
+    // Get project details with rubric and assessment
+    const { data: project, error: projectError } = await supabase
+      .from('projects')
+      .select(`
+        id,
+        phase,
+        final_report_url,
+        team_id,
+        problems!inner(
+          id,
+          title,
+          course_id,
+          rubrics(
+            id,
+            rubric_criteria(
+              id,
+              criterion_text,
+              max_score,
+              sort_order
+            )
+          )
+        ),
+        assessments(
+          id,
+          overall_feedback,
+          status,
+          created_at,
+          assessor:users!assessments_assessor_id_fkey(
+            id,
+            name
+          ),
+          assessment_scores(
+            criterion_id,
+            score,
+            justification
+          )
+        )
+      `)
+      .eq('id', projectId)
+      .single();
+
+    if (projectError || !project) {
+      throw new DatabaseError(
+        'fetch_project',
+        'Failed to fetch project details',
+        projectError ? new Error(projectError.message) : undefined,
+        { projectId }
+      );
+    }
+
+    // Verify user has access to this project (basic authorization)
+    const courseId = project.problems.course_id;
+    
+    if (user.role === 'student') {
+      // Students must be team members
+      const { data: teamMember } = await supabase
+        .from('teams_users')
+        .select('team_id')
+        .eq('team_id', project.team_id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (!teamMember) {
+        throw new AuthorizationError(
+          'team_member_required',
+          'You must be a team member to view this project',
+          user.role,
+          { projectId, teamId: project.team_id }
+        );
+      }
+    } else if (user.role === 'educator') {
+      // Educators must own the course
+      if (!courseId) {
+        throw new BusinessLogicError(
+          'no_course_id',
+          'Project has no associated course',
+          { projectId }
+        );
+      }
+
+      const { data: course } = await supabase
+        .from('courses')
+        .select('admin_id')
+        .eq('id', courseId)
+        .single();
+
+      if (!course || course.admin_id !== user.id) {
+        throw new AuthorizationError(
+          'course_ownership_required',
+          'You can only view assessments for projects in your courses',
+          user.role,
+          { courseId, userId: user.id }
+        );
+      }
+    }
+    // Admins can view any project
+
+    // Check that project is closed
+    if (project.phase !== 'closed') {
+      throw new BusinessLogicError(
+        'project_not_closed',
+        'Assessment results are only available for closed projects',
+        { currentPhase: project.phase, projectId }
+      );
+    }
+
+    // Check that assessment exists
+    if (!project.assessments || project.assessments.length === 0) {
+      throw new BusinessLogicError(
+        'no_assessment_found',
+        'No assessment found for this project',
+        { projectId }
+      );
+    }
+
+    const assessment = project.assessments[0]; // Should only be one assessment per project
+    const rubricCriteria = project.problems.rubrics?.rubric_criteria || [];
+    
+    if (!assessment.assessor || !assessment.assessor.name) {
+      throw new DatabaseError(
+        'missing_assessor_data',
+        'Assessment assessor information is missing',
+        undefined,
+        { assessmentId: assessment.id }
+      );
+    }
+
+    // Create rubric results by joining criteria with scores
+    const rubricResults = rubricCriteria
+      .map(criterion => {
+        const score = assessment.assessment_scores.find(
+          s => s.criterion_id === criterion.id
+        );
+        
+        if (!score) {
+          throw new BusinessLogicError(
+            'missing_score',
+            `Score missing for criterion: ${criterion.criterion_text}`,
+            { criterionId: criterion.id, assessmentId: assessment.id }
+          );
+        }
+
+        return {
+          criterion: {
+            id: criterion.id,
+            criterion_text: criterion.criterion_text,
+            max_score: criterion.max_score,
+            sort_order: criterion.sort_order
+          },
+          score: score.score,
+          justification: score.justification
+        };
+      })
+      .sort((a, b) => a.criterion.sort_order - b.criterion.sort_order);
+
+    const results: ProjectAssessmentResults = {
+      project: {
+        id: project.id,
+        phase: project.phase,
+        final_report_url: project.final_report_url,
+        problem_title: project.problems.title
+      },
+      rubricResults,
+      assessment: {
+        id: assessment.id,
+        assessor_name: assessment.assessor.name,
+        overall_feedback: assessment.overall_feedback,
+        status: assessment.status,
+        created_at: assessment.created_at
+      }
+    };
+
+    return createSuccessResponse(results);
+
+  } catch (error) {
+    if (isPBLabError(error)) {
+      return createErrorResponse(getUserMessage(error));
+    }
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Unexpected error fetching assessment results: ${errorMessage}`);
+  }
+}

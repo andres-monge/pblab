@@ -9,6 +9,7 @@ import { RubricAssessment } from "@/components/pblab/educator/rubric-assessment"
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { GoogleDocPreview } from "@/components/pblab/project/google-doc-preview";
+import { AssessmentResults } from "@/components/pblab/project/assessment-results";
 import type { Database } from "@/lib/db.types";
 
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -284,10 +285,41 @@ export default async function ProjectWorkspace({
                 )}
                 
                 {project.phase === 'closed' && (
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <p className="text-muted-foreground">
                       This project has been completed and assessed.
                     </p>
+                    
+                    {/* Show final report for closed phase */}
+                    {project.final_report_url && (
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Final Report</CardTitle>
+                          <CardDescription>
+                            The team&apos;s submitted final report for this project.
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex items-center gap-2 p-3 bg-muted rounded-md mb-4">
+                            <span className="flex-1 text-sm break-all">{project.final_report_url}</span>
+                            <a
+                              href={project.final_report_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                            >
+                              View Report →
+                            </a>
+                          </div>
+                          
+                          {/* Google Doc Preview */}
+                          <GoogleDocPreview url={project.final_report_url} />
+                        </CardContent>
+                      </Card>
+                    )}
+                    
+                    {/* Show assessment results */}
+                    <AssessmentResults projectId={project.id} />
                     
                     {/* Show artifacts in read-only mode for closed phase */}
                     <ProjectArtifacts

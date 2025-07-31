@@ -11,6 +11,7 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedActiveProjects, setExpandedActiveProjects] = useState(false);
+  const [expandedCompletedProjects, setExpandedCompletedProjects] = useState(false);
   const [expandedNotifications, setExpandedNotifications] = useState(false);
 
   useEffect(() => {
@@ -118,6 +119,50 @@ export default function StudentDashboard() {
                   {expandedActiveProjects 
                     ? "Show less" 
                     : `+${data.activeProjects.length - 3} more projects`
+                  }
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Completed Projects */}
+        <div className="rounded-lg border p-6">
+          <h3 className="font-semibold">Completed Projects</h3>
+          {data.completedProjects.length === 0 ? (
+            <p className="text-sm text-muted-foreground mt-2">
+              You have no completed projects yet.
+            </p>
+          ) : (
+            <div className="mt-3 space-y-2">
+              {(expandedCompletedProjects ? data.completedProjects : data.completedProjects.slice(0, 3)).map((project) => (
+                <div key={project.id} className="flex items-center justify-between">
+                  <div>
+                    <Link 
+                      href={`/p/${project.id}`}
+                      className="text-sm font-medium hover:underline"
+                    >
+                      {project.problem.title}
+                    </Link>
+                    <p className="text-xs text-muted-foreground">
+                      Team: {project.team.name}
+                    </p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {project.phase}
+                  </Badge>
+                </div>
+              ))}
+              {data.completedProjects.length > 3 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setExpandedCompletedProjects(!expandedCompletedProjects)}
+                  className="text-xs text-muted-foreground h-auto p-1 hover:text-foreground"
+                >
+                  {expandedCompletedProjects 
+                    ? "Show less" 
+                    : `+${data.completedProjects.length - 3} more projects`
                   }
                 </Button>
               )}
