@@ -147,7 +147,7 @@ export function LearningGoalEditor({
       {/* Learning Goals Editor */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-medium">Learning Goals</h3>
+          <h3 className="text-lg font-medium">Learning Goals & Problem Statement</h3>
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -180,13 +180,11 @@ export function LearningGoalEditor({
         </div>
 
         <Textarea
-          placeholder="Define your learning goals for this project. What do you hope to learn and achieve? Be specific about the skills, knowledge, and competencies you want to develop.
+          placeholder="Propose your problem statement and define your learning goals for this project.
 
-Examples:
-• Develop proficiency in data analysis techniques
-• Understand the relationship between theory and practice
-• Apply critical thinking to real-world problems
-• Collaborate effectively in a team environment"
+Problem Statement: How do you interpret and frame this problem? What specific aspect will your team focus on?
+
+Learning Goals: What do you hope to learn and achieve? Be specific about the skills, knowledge, and competencies you want to develop."
           value={goals}
           onChange={(e) => setGoals(e.target.value)}
           disabled={isLocked}
@@ -212,38 +210,6 @@ Examples:
               {saveMessage.text}
             </AlertDescription>
           </Alert>
-        )}
-
-        {/* Phase Transition Button */}
-        {canTransitionToResearch && (
-          <div className="pt-4 border-t">
-            <div className="space-y-3">
-              <div>
-                <h4 className="text-sm font-medium text-gray-900 mb-1">Ready to Start Research?</h4>
-                <p className="text-sm text-muted-foreground">
-                  Once you&apos;re satisfied with your learning goals, advance to the research phase to begin collecting artifacts and collaborating with your team.
-                </p>
-              </div>
-              <Button
-                onClick={handlePhaseTransition}
-                disabled={isTransitioning || !goals.trim()}
-                className="flex items-center gap-2"
-                size="lg"
-              >
-                {isTransitioning ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Advancing to Research Phase...
-                  </>
-                ) : (
-                  <>
-                    <ArrowRight className="h-4 w-4" />
-                    Confirm Learning Goals & Start Research
-                  </>
-                )}
-              </Button>
-            </div>
-          </div>
         )}
       </div>
 
@@ -306,6 +272,38 @@ Examples:
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* Phase Transition Button */}
+      {canTransitionToResearch && (
+        <div className="pt-4 border-t">
+          <div className="space-y-3">
+            <div>
+              <h4 className="text-sm font-medium text-gray-900 mb-1">Ready to Start Research?</h4>
+              <p className="text-sm text-muted-foreground">
+                Once you&apos;re satisfied with your problem statement and learning goals, advance to the research phase to begin collecting artifacts and collaborating with your team.
+              </p>
+            </div>
+            <Button
+              onClick={handlePhaseTransition}
+              disabled={isTransitioning || !goals.trim()}
+              className="flex items-center gap-2"
+              size="lg"
+            >
+              {isTransitioning ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Advancing to Research Phase...
+                </>
+              ) : (
+                <>
+                  <ArrowRight className="h-4 w-4" />
+                  Confirm Problem Statement & Learning Goals
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
