@@ -6,13 +6,16 @@ import {
   getAllUsers, 
   getAllTeams, 
   getAllCourses,
+  getAllProjects,
   deleteUser,
   deleteTeam,
   deleteCourse,
+  deleteProject,
   updateCourse,
   type UserWithDetails,
   type TeamWithDetails,
-  type CourseWithDetails
+  type CourseWithDetails,
+  type ProjectWithDetails
 } from "@/lib/actions/admin";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -38,14 +41,15 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<UserWithDetails[]>([]);
   const [teams, setTeams] = useState<TeamWithDetails[]>([]);
   const [courses, setCourses] = useState<CourseWithDetails[]>([]);
+  const [projects, setProjects] = useState<ProjectWithDetails[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   // Modal state
   const [editUser, setEditUser] = useState<UserWithDetails | null>(null);
   const [editTeam, setEditTeam] = useState<TeamWithDetails | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<{
-    type: 'user' | 'team' | 'course';
-    item: UserWithDetails | TeamWithDetails | CourseWithDetails;
+    type: 'user' | 'team' | 'course' | 'project';
+    item: UserWithDetails | TeamWithDetails | CourseWithDetails | ProjectWithDetails;
   } | null>(null);
 
   // Course editing state
@@ -77,10 +81,11 @@ export default function AdminDashboard() {
     setError(null);
     
     try {
-      const [usersResult, teamsResult, coursesResult] = await Promise.all([
+      const [usersResult, teamsResult, coursesResult, projectsResult] = await Promise.all([
         getAllUsers(),
         getAllTeams(),
         getAllCourses(),
+        getAllProjects(),
       ]);
 
       if (usersResult.success) {
@@ -101,6 +106,13 @@ export default function AdminDashboard() {
         setCourses(coursesResult.data);
       } else {
         setError(`Failed to load courses: ${coursesResult.error}`);
+        return;
+      }
+
+      if (projectsResult.success) {
+        setProjects(projectsResult.data);
+      } else {
+        setError(`Failed to load projects: ${projectsResult.error}`);
         return;
       }
     } catch {
@@ -136,6 +148,18 @@ export default function AdminDashboard() {
     if (!deleteConfirmation || deleteConfirmation.type !== 'course') return;
     
     const result = await deleteCourse({ courseId: deleteConfirmation.item.id });
+    if (result.success) {
+      loadAllData();
+      loadDashboardData();
+    } else {
+      setError(result.error);
+    }
+  };
+
+  const handleDeleteProject = async () => {
+    if (!deleteConfirmation || deleteConfirmation.type !== 'project') return;
+    
+    const result = await deleteProject({ projectId: deleteConfirmation.item.id });
     if (result.success) {
       loadAllData();
       loadDashboardData();
@@ -297,6 +321,52 @@ export default function AdminDashboard() {
     },
   ];
 
+  const projectColumns: TableColumn<ProjectWithDetails>[] = [
+    { 
+      key: "team.name", 
+      header: "Team",
+      cell: (project) => project.team.name
+    },
+    { 
+      key: "problem.title", 
+      header: "Problem",
+      cell: (project) => project.problem.title
+    },
+    { 
+      key: "team.course.name", 
+      header: "Course",
+      cell: (project) => project.team.course.name
+    },
+    { 
+      key: "phase", 
+      header: "Phase",
+      cell: (project) => (
+        <Badge 
+          variant={
+            project.phase === 'closed' ? 'secondary' : 
+            project.phase === 'post' ? 'default' : 
+            'outline'
+          }
+        >
+          {project.phase}
+        </Badge>
+      )
+    },
+    { 
+      key: "created_at", 
+      header: "Created",
+      cell: (project) => new Date(project.created_at).toLocaleDateString()
+    },
+  ];
+
+  const projectActions: TableAction<ProjectWithDetails>[] = [
+    {
+      label: "Delete",
+      onClick: (project) => setDeleteConfirmation({ type: 'project', item: project }),
+      variant: "destructive",
+    },
+  ];
+
   if (dashboardLoading) {
     return (
       <div className="space-y-6">
@@ -356,6 +426,7 @@ export default function AdminDashboard() {
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="teams">Teams</TabsTrigger>
           <TabsTrigger value="courses">Courses</TabsTrigger>
+          <TabsTrigger value="projects">Projects</TabsTrigger>
         </TabsList>
 
         <TabsContent value="users" className="space-y-4">
@@ -396,6 +467,18 @@ export default function AdminDashboard() {
             emptyMessage="No courses found"
           />
         </TabsContent>
+
+        <TabsContent value="projects" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Project Management</h2>
+          </div>
+          <DataTable
+            data={projects}
+            columns={projectColumns}
+            actions={projectActions}
+            emptyMessage="No projects found"
+          />
+        </TabsContent>
       </Tabs>
 
       {/* Modals */}
@@ -421,6 +504,8 @@ export default function AdminDashboard() {
         itemName={
           deleteConfirmation?.type === 'user'
             ? (deleteConfirmation.item as UserWithDetails).email
+            : deleteConfirmation?.type === 'project'
+            ? `${(deleteConfirmation.item as ProjectWithDetails).team.name} - ${(deleteConfirmation.item as ProjectWithDetails).problem.title}`
             : (
                 (deleteConfirmation?.item as TeamWithDetails | CourseWithDetails)
                   ?.name ?? 'Unknown'
@@ -431,7 +516,9 @@ export default function AdminDashboard() {
             ? handleDeleteUser
             : deleteConfirmation?.type === 'team'
             ? handleDeleteTeam
-            : handleDeleteCourse
+            : deleteConfirmation?.type === 'course'
+            ? handleDeleteCourse
+            : handleDeleteProject
         }
       />
     </div>

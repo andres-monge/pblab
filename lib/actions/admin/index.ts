@@ -41,3 +41,11 @@ export {
   type DeleteCourseParams,
   type EducatorOption,
 } from './courses';
+
+// Project management
+export {
+  getAllProjects,
+  deleteProject,
+  type ProjectWithDetails,
+  type DeleteProjectParams,
+} from './projects';
