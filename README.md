@@ -4,7 +4,7 @@ An MVP Learning Management System designed for Problem-Based Learning (PBL) that
 
 ## =� Live Demo
 
-- **Live Application:** [Coming Soon - Deploy URL]
+- **Live Application:** https://pblab-rouge.vercel.app/
 - **GitHub Repository:** https://github.com/andres-monge/pblab
 - **Demo Video:** [Coming Soon - YouTube Link]
 
