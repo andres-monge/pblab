@@ -5,12 +5,15 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, Lightbulb, Save, Copy, CheckCircle, AlertCircle } from "lucide-react";
-import { updateProjectLearningGoals } from "@/lib/actions/projects";
+import { Loader2, Lightbulb, Save, Copy, CheckCircle, AlertCircle, ArrowRight } from "lucide-react";
+import { updateProjectLearningGoals, updateProjectPhase } from "@/lib/actions/projects";
 
 interface LearningGoalEditorProps {
   projectId: string;
   initialGoals: string | null;
+  currentUserRole: 'student' | 'educator' | 'admin';
+  projectPhase: 'pre' | 'research' | 'post' | 'closed';
+  isLocked?: boolean;
 }
 
 interface AiSuggestion {
@@ -18,13 +21,20 @@ interface AiSuggestion {
   id: string;
 }
 
-export function LearningGoalEditor({ projectId, initialGoals }: LearningGoalEditorProps) {
+export function LearningGoalEditor({ 
+  projectId, 
+  initialGoals, 
+  currentUserRole, 
+  projectPhase, 
+  isLocked = false 
+}: LearningGoalEditorProps) {
   const [goals, setGoals] = useState(initialGoals || '');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [suggestions, setSuggestions] = useState<AiSuggestion[]>([]);
   const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -102,7 +112,35 @@ export function LearningGoalEditor({ projectId, initialGoals }: LearningGoalEdit
     setTimeout(() => setSaveMessage(null), 2000);
   };
 
+  const handlePhaseTransition = async () => {
+    setIsTransitioning(true);
+    setSaveMessage(null);
+    
+    try {
+      const result = await updateProjectPhase({
+        projectId,
+        newPhase: 'research'
+      });
+
+      if (result.success) {
+        setSaveMessage({ type: 'success', text: 'Successfully advanced to Research phase! Page will reload shortly.' });
+        // Reload the page to show the new phase UI
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        setSaveMessage({ type: 'error', text: result.error || 'Failed to advance to Research phase' });
+      }
+    } catch (error) {
+      console.error('Error advancing project phase:', error);
+      setSaveMessage({ type: 'error', text: 'An unexpected error occurred while advancing the phase' });
+    } finally {
+      setIsTransitioning(false);
+    }
+  };
+
   const hasChanges = goals.trim() !== (initialGoals || '').trim();
+  const canTransitionToResearch = currentUserRole === 'student' && projectPhase === 'pre' && !isLocked;
 
   return (
     <div className="space-y-6">
@@ -115,7 +153,7 @@ export function LearningGoalEditor({ projectId, initialGoals }: LearningGoalEdit
               variant="outline"
               size="sm"
               onClick={handleGetSuggestions}
-              disabled={isLoadingSuggestions}
+              disabled={isLoadingSuggestions || isLocked}
               className="flex items-center gap-2"
             >
               {isLoadingSuggestions ? (
@@ -127,7 +165,7 @@ export function LearningGoalEditor({ projectId, initialGoals }: LearningGoalEdit
             </Button>
             <Button
               onClick={handleSave}
-              disabled={isSaving || !hasChanges}
+              disabled={isSaving || !hasChanges || isLocked}
               size="sm"
               className="flex items-center gap-2"
             >
@@ -151,6 +189,7 @@ Examples:
 • Collaborate effectively in a team environment"
           value={goals}
           onChange={(e) => setGoals(e.target.value)}
+          disabled={isLocked}
           className="min-h-[200px] resize-y"
         />
 
@@ -173,6 +212,38 @@ Examples:
               {saveMessage.text}
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* Phase Transition Button */}
+        {canTransitionToResearch && (
+          <div className="pt-4 border-t">
+            <div className="space-y-3">
+              <div>
+                <h4 className="text-sm font-medium text-gray-900 mb-1">Ready to Start Research?</h4>
+                <p className="text-sm text-muted-foreground">
+                  Once you&apos;re satisfied with your learning goals, advance to the research phase to begin collecting artifacts and collaborating with your team.
+                </p>
+              </div>
+              <Button
+                onClick={handlePhaseTransition}
+                disabled={isTransitioning || !goals.trim()}
+                className="flex items-center gap-2"
+                size="lg"
+              >
+                {isTransitioning ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Advancing to Research Phase...
+                  </>
+                ) : (
+                  <>
+                    <ArrowRight className="h-4 w-4" />
+                    Confirm Learning Goals & Start Research
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         )}
       </div>
 
@@ -212,6 +283,7 @@ Examples:
                     variant="ghost"
                     size="sm"
                     onClick={() => handleCopySuggestion(suggestion.text)}
+                    disabled={isLocked}
                     className="flex items-center gap-1 text-xs"
                   >
                     <Copy className="h-3 w-3" />
@@ -226,6 +298,7 @@ Examples:
                 variant="ghost"
                 size="sm"
                 onClick={() => setSuggestions([])}
+                disabled={isLocked}
                 className="text-xs text-muted-foreground"
               >
                 Clear suggestions

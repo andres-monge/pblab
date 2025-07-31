@@ -11,9 +11,10 @@ import { updateProjectReportUrl } from "@/lib/actions/projects";
 interface FinalReportSubmissionProps {
   projectId: string;
   currentReportUrl?: string | null;
+  isLocked?: boolean;
 }
 
-export function FinalReportSubmission({ projectId, currentReportUrl }: FinalReportSubmissionProps) {
+export function FinalReportSubmission({ projectId, currentReportUrl, isLocked = false }: FinalReportSubmissionProps) {
   const [reportUrl, setReportUrl] = useState(currentReportUrl || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -121,6 +122,7 @@ export function FinalReportSubmission({ projectId, currentReportUrl }: FinalRepo
               value={reportUrl}
               onChange={(e) => setReportUrl(e.target.value)}
               required={!currentReportUrl}
+              disabled={isLocked}
             />
             <p className="text-xs text-muted-foreground">
               Enter the link to your Google Doc or other document platform
@@ -129,7 +131,7 @@ export function FinalReportSubmission({ projectId, currentReportUrl }: FinalRepo
 
           <Button 
             type="submit" 
-            disabled={isSubmitting || (!hasChanges && !!currentReportUrl)}
+            disabled={isSubmitting || (!hasChanges && !!currentReportUrl) || isLocked}
             className="flex items-center gap-2"
           >
             {isSubmitting ? (

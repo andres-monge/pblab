@@ -145,6 +145,9 @@ export default async function ProjectWorkspace({
     notFound();
   }
 
+  // Calculate if project is locked (read-only)
+  const isLocked = project.phase === 'closed';
+
   return (
     <div className="flex gap-6">
       {/* Main Content */}
@@ -190,6 +193,9 @@ export default async function ProjectWorkspace({
               <LearningGoalEditor 
                 projectId={project.id}
                 initialGoals={project.learning_goals}
+                currentUserRole={user.role}
+                projectPhase={project.phase}
+                isLocked={isLocked}
               />
             ) : (
               // Other phase content
@@ -201,6 +207,7 @@ export default async function ProjectWorkspace({
                       projectId={project.id}
                       currentUserId={user.id}
                       currentUserRole={user.role}
+                      isLocked={isLocked}
                     />
                     
                     {/* Final Report Submission - Only for Students */}
@@ -208,6 +215,7 @@ export default async function ProjectWorkspace({
                       <FinalReportSubmission
                         projectId={project.id}
                         currentReportUrl={project.final_report_url}
+                        isLocked={isLocked}
                       />
                     )}
                   </div>
@@ -253,6 +261,7 @@ export default async function ProjectWorkspace({
                       projectId={project.id}
                       currentUserId={user.id}
                       currentUserRole={user.role}
+                      isLocked={isLocked}
                     />
                   </div>
                 )}
@@ -268,6 +277,7 @@ export default async function ProjectWorkspace({
                       projectId={project.id}
                       currentUserId={user.id}
                       currentUserRole={user.role}
+                      isLocked={isLocked}
                     />
                   </div>
                 )}

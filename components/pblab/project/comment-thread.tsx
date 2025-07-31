@@ -47,6 +47,7 @@ interface CommentThreadProps {
   }>;
   currentUserId: string;
   onCommentAdded?: () => void;
+  isLocked?: boolean;
 }
 
 interface MentionableUser {
@@ -60,7 +61,8 @@ export function CommentThread({
   projectId,
   comments, 
   currentUserId, 
-  onCommentAdded 
+  onCommentAdded,
+  isLocked = false 
 }: CommentThreadProps) {
   const [commentBody, setCommentBody] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -219,7 +221,7 @@ export function CommentThread({
               placeholder="Add a comment..."
               value={commentBody}
               onChange={(e) => setCommentBody(e.target.value)}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isLocked}
               className="min-h-[80px] resize-none"
             />
           </div>
@@ -231,7 +233,7 @@ export function CommentThread({
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={isSubmitting || availableUsers.length === 0}
+                  disabled={isSubmitting || availableUsers.length === 0 || isLocked}
                   className="flex items-center gap-2"
                 >
                   <AtSign className="h-4 w-4" />
@@ -284,7 +286,7 @@ export function CommentThread({
           <div className="flex justify-end">
             <Button
               onClick={handleSubmit}
-              disabled={isSubmitting || !commentBody.trim()}
+              disabled={isSubmitting || !commentBody.trim() || isLocked}
               size="sm"
             >
               {isSubmitting ? (

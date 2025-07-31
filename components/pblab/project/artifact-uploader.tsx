@@ -15,6 +15,7 @@ import { createClient } from "@/lib/supabase/client";
 interface ArtifactUploaderProps {
   projectId: string;
   onArtifactCreated?: () => void;
+  isLocked?: boolean;
 }
 
 interface UploadState {
@@ -24,7 +25,7 @@ interface UploadState {
   success: string | null;
 }
 
-export function ArtifactUploader({ projectId, onArtifactCreated }: ArtifactUploaderProps) {
+export function ArtifactUploader({ projectId, onArtifactCreated, isLocked = false }: ArtifactUploaderProps) {
   const [uploadState, setUploadState] = useState<UploadState>({
     isUploading: false,
     progress: 0,
@@ -254,7 +255,7 @@ export function ArtifactUploader({ projectId, onArtifactCreated }: ArtifactUploa
                 placeholder="Enter a descriptive title for your file"
                 value={fileTitle}
                 onChange={(e) => setFileTitle(e.target.value)}
-                disabled={uploadState.isUploading}
+                disabled={uploadState.isUploading || isLocked}
               />
             </div>
 
@@ -265,7 +266,7 @@ export function ArtifactUploader({ projectId, onArtifactCreated }: ArtifactUploa
                 id="file-input"
                 type="file"
                 onChange={handleFileSelect}
-                disabled={uploadState.isUploading}
+                disabled={uploadState.isUploading || isLocked}
                 accept=".pdf,.doc,.docx,.txt,.md,.jpg,.jpeg,.png,.gif,.webp,.mp4,.mov,.avi,.zip,.rar"
               />
               {selectedFile && (
@@ -277,7 +278,7 @@ export function ArtifactUploader({ projectId, onArtifactCreated }: ArtifactUploa
 
             <Button
               onClick={handleFileUpload}
-              disabled={uploadState.isUploading || !selectedFile || !fileTitle.trim()}
+              disabled={uploadState.isUploading || !selectedFile || !fileTitle.trim() || isLocked}
               className="w-full"
             >
               {uploadState.isUploading ? (
@@ -302,7 +303,7 @@ export function ArtifactUploader({ projectId, onArtifactCreated }: ArtifactUploa
                 placeholder="Enter a descriptive title for your link"
                 value={linkTitle}
                 onChange={(e) => setLinkTitle(e.target.value)}
-                disabled={uploadState.isUploading}
+                disabled={uploadState.isUploading || isLocked}
               />
             </div>
 
@@ -314,13 +315,13 @@ export function ArtifactUploader({ projectId, onArtifactCreated }: ArtifactUploa
                 placeholder="https://example.com/resource"
                 value={linkUrl}
                 onChange={(e) => setLinkUrl(e.target.value)}
-                disabled={uploadState.isUploading}
+                disabled={uploadState.isUploading || isLocked}
               />
             </div>
 
             <Button
               onClick={handleLinkSubmit}
-              disabled={uploadState.isUploading || !linkTitle.trim() || !linkUrl.trim()}
+              disabled={uploadState.isUploading || !linkTitle.trim() || !linkUrl.trim() || isLocked}
               className="w-full"
             >
               {uploadState.isUploading ? (

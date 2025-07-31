@@ -15,12 +15,14 @@ interface ProjectArtifactsProps {
   projectId: string;
   currentUserId: string;
   currentUserRole: 'student' | 'educator' | 'admin';
+  isLocked?: boolean;
 }
 
 export function ProjectArtifacts({ 
   projectId, 
   currentUserId, 
-  currentUserRole 
+  currentUserRole,
+  isLocked = false 
 }: ProjectArtifactsProps) {
   const [artifacts, setArtifacts] = useState<ArtifactWithComments[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -86,7 +88,8 @@ export function ProjectArtifacts({
       <div className="space-y-6">
         <ArtifactUploader 
           projectId={projectId} 
-          onArtifactCreated={handleArtifactCreated} 
+          onArtifactCreated={handleArtifactCreated}
+          isLocked={isLocked}
         />
         <Card>
           <CardContent className="flex items-center justify-center py-8">
@@ -105,7 +108,8 @@ export function ProjectArtifacts({
       <div className="space-y-6">
         <ArtifactUploader 
           projectId={projectId} 
-          onArtifactCreated={handleArtifactCreated} 
+          onArtifactCreated={handleArtifactCreated}
+          isLocked={isLocked}
         />
         <Alert className="border-red-200 bg-red-50">
           <AlertCircle className="h-4 w-4 text-red-600" />
@@ -124,7 +128,8 @@ export function ProjectArtifacts({
       {/* Artifact Uploader */}
       <ArtifactUploader 
         projectId={projectId} 
-        onArtifactCreated={handleArtifactCreated} 
+        onArtifactCreated={handleArtifactCreated}
+        isLocked={isLocked}
       />
 
       {/* Artifacts List */}
@@ -185,6 +190,7 @@ export function ProjectArtifacts({
                         comments={artifact.comments}
                         currentUserId={currentUserId}
                         onCommentAdded={() => handleCommentAdded()}
+                        isLocked={isLocked}
                       />
                     )}
                   </div>

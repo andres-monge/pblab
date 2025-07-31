@@ -291,7 +291,7 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 
 ---
 
-[ ] Step 32: **Finalize Lifecycle UI & Read-Only States** **Task**: Add the first lifecycle transition button for students (`Pre` → `Research`) and ensure all interactive elements on the project page become disabled when the project is `closed`. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `components/pblab/project/learning-goal-editor.tsx`, `components/pblab/project/project-artifacts.tsx` **Implementation Notes**:
+[X] Step 32: **Finalize Lifecycle UI & Read-Only States** **Task**: Add the first lifecycle transition button for students (`Pre` → `Research`) and ensure all interactive elements on the project page become disabled when the project is `closed`. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `components/pblab/project/learning-goal-editor.tsx`, `components/pblab/project/project-artifacts.tsx` **Implementation Notes**:
 
 1. In the `LearningGoalEditor` component (or on the project page when `phase === 'pre'`), add a "Confirm Learning Goals & Start Research" button visible only to students. This button will call `updateProjectPhase`.
     
