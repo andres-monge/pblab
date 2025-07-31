@@ -330,12 +330,12 @@ Note: Before: https://docs.google.com/document/.../edit?usp=sharing → Security
 
 ---
 
-[ ] Step 35: **Create Final README.md Documentation** **Task**: Create the final `README.md` file for your project submission. This is a critical deliverable for the judges. **Suggested Files for Context**: `docs/comp-criteria.md` (Deliverables section), `scripts/seed.ts` (for test account credentials) **Implementation Notes**:
+[X] Step 35: **Create Final README.md Documentation** **Task**: Create the final `README.md` file for your project submission. This is a critical deliverable for the judges. **Suggested Files for Context**: `docs/tech-spec.md`, `docs/prd.md` `docs/comp-criteria.md` (Deliverables section), `scripts/seed.ts` (for test account credentials) **Implementation Notes**:
 
 1. Clear out the starter template's content from `README.md`.
     
 2. Add all required elements: Live URL, GitHub Repo URL, and a placeholder for your demo video link.
     
-3. Create a "Test Accounts" section with the email/password for the admin, educator, and student users from your seed script.
+3. Create a "Test Accounts" section emphasizing the reasoning layed out in `docs/authentication-strategy.md` with the email/password for the admin, educator, and student users from your seed script.
     
-4. Write a clear, step-by-step guide for judges on how to test the student invite feature, as this is a specific user flow they will need to verify.
+4. Write a clear, step-by-step guide for judges on how to test the student invite feature, as this is a specific user flow they will need to verify. it is essentially: from the admin dashboard, admins can click "Invite Users" to create a link to join the app. Here is an example of invite link generated: http://localhost:3000/invite?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFuZHJlc21vbmdlbGlhbm9AZ21haWwuY29tIiwibmFtZSI6IkFuZHJlcyBNb25nZSIsInJvbGUiOiJzdHVkZW50IiwiZXhwIjoxNzU0NTY4NDYyLCJpYXQiOjE3NTM5NjM2NjJ9.oEUNpSSQsZtu1ubs_ZZYxf0eASAnVwfPt2GQevumqxI
