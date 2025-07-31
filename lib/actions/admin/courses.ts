@@ -43,6 +43,8 @@ export interface CourseWithDetails {
 export interface CreateCourseParams {
   /** Course name */
   name: string;
+  /** ID of the educator to assign to this course */
+  educatorId: string;
 }
 
 /**
@@ -64,6 +66,15 @@ export interface DeleteCourseParams {
 }
 
 /**
+ * Educator option for dropdown selection
+ */
+export interface EducatorOption {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/**
  * Verify admin permissions
  * 
  * Helper function to ensure only admin users can perform admin operations
@@ -72,6 +83,47 @@ async function requireAdminPermissions(): Promise<void> {
   const user = await getAuthenticatedUser();
   if (user.role !== 'admin') {
     throw new Error('Admin permissions required for this operation');
+  }
+}
+
+/**
+ * Get all educators for course assignment
+ * 
+ * Fetches all users with educator role for admin to assign to courses.
+ * Only accessible by admin users.
+ * 
+ * @returns Promise resolving to QueryResult with educators array or error
+ */
+export async function getAllEducators(): Promise<QueryResult<EducatorOption[]>> {
+  try {
+    // Verify admin permissions
+    await requireAdminPermissions();
+    
+    const supabase = await createClient();
+
+    // Fetch all educators
+    const { data: educators, error: educatorsError } = await supabase
+      .from('users')
+      .select('id, name, email')
+      .eq('role', 'educator')
+      .order('name', { ascending: true });
+
+    if (educatorsError) {
+      console.error('Failed to fetch educators:', educatorsError);
+      throw new Error(`Failed to fetch educators: ${educatorsError.message}`);
+    }
+
+    // Transform data to match our interface
+    const transformedEducators: EducatorOption[] = (educators || []).map((educator) => ({
+      id: educator.id,
+      name: educator.name || educator.email, // Use email as fallback if name is null
+      email: educator.email,
+    }));
+
+    return createSuccessResponse(transformedEducators);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    return createErrorResponse(`Error fetching educators: ${errorMessage}`);
   }
 }
 
@@ -138,17 +190,18 @@ export async function getAllCourses(): Promise<QueryResult<CourseWithDetails[]>>
 /**
  * Create a new course
  * 
- * Creates a new course with the current admin as the course admin.
+ * Creates a new course with the specified educator assigned as the course admin.
  * Only accessible by admin users.
  * 
  * @param params - Course creation parameters
  * @returns Promise resolving to CreateResult with course ID or error
  */
 export async function createCourse(params: CreateCourseParams): Promise<CreateResult> {
-  const { name } = params;
+  const { name, educatorId } = params;
 
   // Validate required parameters
   const validatedName = validateRequiredString(name, 'Course name');
+  const validatedEducatorId = validateId(educatorId, 'Educator ID');
 
   try {
     // Verify admin permissions and get current user
@@ -158,6 +211,18 @@ export async function createCourse(params: CreateCourseParams): Promise<CreateRe
     }
     
     const supabase = await createClient();
+
+    // Validate that the educator exists and has educator role
+    const { data: educator, error: educatorError } = await supabase
+      .from('users')
+      .select('id, role')
+      .eq('id', validatedEducatorId)
+      .eq('role', 'educator')
+      .single();
+
+    if (educatorError || !educator) {
+      return createErrorResponse('Selected user is not a valid educator');
+    }
 
     // Check if course name already exists
     const { data: existingCourse, error: checkError } = await supabase
@@ -176,10 +241,10 @@ export async function createCourse(params: CreateCourseParams): Promise<CreateRe
       return createErrorResponse('A course with this name already exists');
     }
 
-    // Create the course
+    // Create the course with the selected educator as admin
     const courseData: CourseInsert = {
       name: validatedName,
-      admin_id: currentUser.id,
+      admin_id: validatedEducatorId,
     };
 
     const { data: createdCourse, error: createError } = await supabase

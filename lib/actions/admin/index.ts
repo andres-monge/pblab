@@ -31,6 +31,7 @@ export {
 // Course management
 export {
   getAllCourses,
+  getAllEducators,
   createCourse,
   updateCourse,
   deleteCourse,
@@ -38,4 +39,5 @@ export {
   type CreateCourseParams,
   type UpdateCourseParams,
   type DeleteCourseParams,
+  type EducatorOption,
 } from './courses';
