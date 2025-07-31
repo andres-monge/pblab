@@ -6,7 +6,12 @@
     "start": "next start",
     "lint": "next lint",
     "types:gen": "supabase gen types typescript --project-id dncxarwdamsvwcjuyqkk > lib/db.types.ts",
-    "db:seed": "npx tsx scripts/seed.ts"
+    "db:seed": "npx tsx scripts/seed.ts",
+    "test": "jest",
+    "test:unit": "jest __tests__/unit",
+    "test:e2e": "playwright test",
+    "test:all": "npm run test:unit && npm run test:e2e",
+    "test:setup": "npm run db:seed -- --force"
   },
   "dependencies": {
     "@google/genai": "^1.0.0",
@@ -39,6 +44,10 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@jest/globals": "^30.0.5",
+    "@playwright/test": "^1.54.1",
+    "@testing-library/jest-dom": "^6.6.4",
+    "@types/jest": "^30.0.0",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -46,10 +55,13 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "15.3.1",
+    "jest": "^30.0.5",
+    "jest-environment-node": "^30.0.5",
     "postcss": "^8",
     "supabase": "^1.215.3",
     "tailwindcss": "^3.4.1",
     "tailwindcss-animate": "^1.0.7",
+    "ts-jest": "^29.4.0",
     "ts-node": "^10.9.2",
     "typescript": "^5"
   }

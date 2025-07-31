@@ -145,31 +145,13 @@ The project will be built upon the provided Next.js starter template. New direct
     - Handle database transaction failure.
         
 
-### 3.2 Student: Join Team via Invite Link
+### 3.2 Student: Join Team 
 
-- **User Story:** As a student, I can join a team via an invite link so that I can collaborate on a PBL problem.
+- **User Story:** As a student, I am added to a team by an Educator so that I can collaborate on a PBL problem.
     
 - **Implementation Steps:**
     
-    1. The Educator, on a team management page, can click "Generate Invite Link" for a specific team.
-        
-    2. A server action generates a unique, short-lived JWT containing the `team_id`. The link is `/join?token=[JWT]`.
-        
-    3. A student clicks the link. The `/join` page verifies the JWT.
-        
-    4. If the user is not authenticated, they are redirected to `/auth/login` with a `redirectTo` param.
-        
-    5. Once authenticated, the page decodes the `team_id` from the token and prompts for confirmation.
-        
-    6. On confirmation, a server action `joinTeam(teamId)` inserts a new row into the `teams_users` table.
-        
-    7. The user is redirected to their student dashboard at `/student/dashboard`.
-        
-- **Error Handling:**
-    
-    - Invalid/expired token: Show "This invite link is invalid or has expired."
-        
-    - User is already on the team: Show "You are already a member of this team."
+    1. The Educator, on a team management page, can choose the students for a specific team.
         
 
 ### 3.3 Student: Manage Artifacts, Comments, and AI Tutor

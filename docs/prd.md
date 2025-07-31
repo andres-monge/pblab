@@ -68,3 +68,36 @@ It is highly recommeneded to conduct some research on the PBL process and how it
 | **Hosting** | Vercel (app) + Supabase cloud |Minimal infrastructure complexity |
 | **AI** | OpenAI functions via serverless route `/api/ai/*`; usage logged in `ai_usage` table | Simple, auditable |
 | **Integrations** | Google OAuth scopes limited to Drive read-only for file metadata | Avoids storing large files |
+
+## 7. Built-In AI-First Example Problems. 
+
+Pre-populate your app with two example problems. If you want to impress the reviewers, think about how you can improve the app to fascilitate students to get the most out of the PBL process. It's not about making everything easier for the students, but increasing motivation to engage in the PBL process and making them creators of their own learning instead of just consumers.
+
+### 7.1 "Outbreak Simulator" (Epidemiology)
+| Item | Description |
+|------|-------------|
+| **Problem Desc.** | A mysterious pathogen emerges in a city. Model its spread and propose containment strategies. |
+| **Deliverable** | A playable web simulation (SIR model) + report comparing R₀ under interventions. |
+| **Learning Goals** (sample) | • Understand SIR equations • Implement basic differential equations in JS • Interpret R₀ • Evaluate vaccination vs. quarantine |
+| **Artifacts** | Google Sheet with data, code repo link, demo GIF |
+| **AI Coach Prompts** | "Suggest parameter ranges for an airborne virus", "Explain R₀ to a 12-year-old" |
+
+### 7.2 "EcoBalance" (Predator-Prey Ecology)
+| Item | Description |
+|------|-------------|
+| **Problem Desc.** | Design a simple ecosystem where predators and prey reach dynamic equilibrium. Adjust variables to prevent extinction. |
+| **Deliverable** | Interactive Lotka-Volterra simulation + reflective essay on sustainability parallels. |
+| **Learning Goals** | • Implement predator-prey equations • Visualize populations over time • Identify tipping points |
+| **Artifacts** | Time-series charts, short explainer video, code link |
+| **AI Coach Prompts** | "Derive Lotka-Volterra from first principles", "Suggest UX to show population collapse" |
+
+---
+
+## 8. Tests-to-Pass (Sample Acceptance Criteria)
+| ID | Test | How to Verify |
+|----|------|---------------|
+| **T-01** | Student can create team via UI and invite peer via email. | E2E test: create → invite → peer accepts → team appears in dashboard. |
+| **T-02** | PBL AI helper returns feedback but doesn't do the work for the student; logs usage. | Jest unit: mock Gemini → assert DB `ai_usage` row. |
+| **T-03** | Artifact upload enforces file-type whitelist. | API test: upload `.exe` → 400 error. |
+| **T-04** | Educator locks project editing. 
+

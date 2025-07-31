@@ -317,7 +317,7 @@ Note: Before: https://docs.google.com/document/.../edit?usp=sharing → Security
 
 ## Phase 7: Finalization and Testing
 
-[ ] Step 34: **IMPORTANT: Setup and Write E2E & Unit Tests** **Task**: Install and configure Jest and Playwright. Write the four key tests defined in the PRD's acceptance criteria to ensure the application is robust and meets the competition's technical requirements. **Suggested Files for Context**: `package.json`, `docs/prd.md` (Section 8, Tests-to-Pass) **Implementation Notes**:
+[X] Step 34: **IMPORTANT: Setup and Write E2E & Unit Tests** **Task**: Install and configure Jest and Playwright. Write the four key tests defined in the PRD's acceptance criteria to ensure the application is robust and meets the competition's technical requirements. Remember to test as authenticated users where applicable. **Suggested Files for Context**: `package.json`, `docs/testing-requirements.md`, `docs/prd.md` (Section 8, Tests-to-Pass) **Implementation Notes**:
 
 - **T-01 (E2E):** Test the full student invite flow.
     
@@ -325,7 +325,7 @@ Note: Before: https://docs.google.com/document/.../edit?usp=sharing → Security
     
 - **T-03 (API/Unit):** Test the `createArtifact` action. Attempt to create an artifact with a disallowed file type (e.g., `.exe`) and assert that it returns an error.
     
-- **T-04 (E2E):** Test that an educator submitting feedback successfully changes the project phase to `closed` and that student inputs are then disabled.
+- **T-04 (E2E):** Test that an educator saving feedback and locking the project successfully changes the project phase to `closed` and that student inputs are then disabled.
     
 
 ---
