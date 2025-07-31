@@ -302,7 +302,7 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
 
 ---
 
-[ ] Step 33: **Implement Google Doc Preview** **Task**: Enhance the final report display to show an embedded preview of the Google Doc using an `<iframe>`. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `docs/prd.md` (Section 4, Google Docs link handling) **Implementation Notes**:
+[X] Step 33: **Implement Google Doc Preview** **Task**: Enhance the final report display to show an embedded preview of the Google Doc using an `<iframe>`. **Suggested Files for Context**: `app/p/[projectId]/page.tsx`, `docs/prd.md` (Section 4, Google Docs link handling) **Implementation Notes**:
 
 1. In the component that displays the final report for educators, check if the `final_report_url` exists.
     
@@ -310,8 +310,7 @@ This phase focuses on building the remaining frontend UI and wiring up the exist
     
 3. Render an `<iframe>` with the transformed URL as its `src`. Style it to have a reasonable height and width.
 
-Note: Before: https://docs.google.com/document/.../edit?usp=sharing → Security software flags as maliciousAfter: https://docs.google.com/document/.../view?usp=sharing →
-  Security software allows it. The fix automatically sanitizes Google Docs, Sheets, and Slides URLs by converting /edit to /view.
+Note: Before: https://docs.google.com/document/.../edit?usp=sharing → Security software flags as malicious. After: https://docs.google.com/document/.../view?usp=sharing → Security software allows it. The fix automatically sanitizes Google Docs, Sheets, and Slides URLs by converting /edit to /view.
     
 
 ---

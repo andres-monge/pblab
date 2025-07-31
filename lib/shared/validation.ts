@@ -337,6 +337,48 @@ function sanitizeGoogleDocsUrl(url: string): string {
 }
 
 /**
+ * Determines if a URL is a Google service that can be embedded in an iframe
+ * 
+ * @param url - The URL to check
+ * @returns True if the URL is embeddable Google service
+ */
+export function isEmbeddableGoogleUrl(url: string): boolean {
+  return url.includes('docs.google.com/document/') ||
+         url.includes('docs.google.com/spreadsheets/') ||
+         url.includes('docs.google.com/presentation/');
+}
+
+/**
+ * Converts a Google Docs URL to an iframe-embeddable preview URL
+ * For embedding in iframes, we need to use /preview instead of /view for better display
+ * 
+ * @param url - The Google Docs URL to convert
+ * @returns The iframe-embeddable URL or null if not a Google service
+ */
+export function getGoogleDocPreviewUrl(url: string): string | null {
+  if (!isEmbeddableGoogleUrl(url)) {
+    return null;
+  }
+
+  // Convert Google Docs URLs to preview format for iframe embedding
+  if (url.includes('docs.google.com/document/')) {
+    return url.replace(/\/(edit|view).*$/, '/preview');
+  }
+  
+  // Convert Google Sheets URLs to preview format for iframe embedding
+  if (url.includes('docs.google.com/spreadsheets/')) {
+    return url.replace(/\/(edit|view).*$/, '/preview');
+  }
+  
+  // Convert Google Slides URLs to embed format for iframe embedding
+  if (url.includes('docs.google.com/presentation/')) {
+    return url.replace(/\/(edit|view).*$/, '/embed');
+  }
+  
+  return null;
+}
+
+/**
  * Validates an enum value against allowed options
  * 
  * @param value - The value to validate

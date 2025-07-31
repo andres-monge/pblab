@@ -8,6 +8,7 @@ import { FinalReportSubmission } from "@/components/pblab/project/final-report-s
 import { RubricAssessment } from "@/components/pblab/educator/rubric-assessment";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { GoogleDocPreview } from "@/components/pblab/project/google-doc-preview";
 import type { Database } from "@/lib/db.types";
 
 type ProjectPhase = Database["public"]["Enums"]["project_phase"];
@@ -247,6 +248,9 @@ export default async function ProjectWorkspace({
                               View Report →
                             </a>
                           </div>
+                          
+                          {/* Google Doc Preview */}
+                          <GoogleDocPreview url={project.final_report_url} />
                         </CardContent>
                       </Card>
                     )}

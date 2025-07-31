@@ -28,6 +28,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { deleteArtifact } from "@/lib/actions/artifacts";
+import { GoogleDocPreview } from "./google-doc-preview";
 
 interface ArtifactCardProps {
   artifact: {
@@ -223,24 +224,29 @@ export function ArtifactCard({
       <CardContent className="pt-0">
         {/* Clickable area to open artifact */}
         {artifact.url && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleArtifactClick}
-            className="w-full justify-start"
-          >
-            {artifact.type === 'link' ? (
-              <>
-                <ExternalLink className="h-4 w-4 mr-2" />
-                Open Link
-              </>
-            ) : (
-              <>
-                <File className="h-4 w-4 mr-2" />
-                View File
-              </>
-            )}
-          </Button>
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleArtifactClick}
+              className="w-full justify-start"
+            >
+              {artifact.type === 'link' ? (
+                <>
+                  <ExternalLink className="h-4 w-4 mr-2" />
+                  Open Link
+                </>
+              ) : (
+                <>
+                  <File className="h-4 w-4 mr-2" />
+                  View File
+                </>
+              )}
+            </Button>
+            
+            {/* Google Doc Preview */}
+            <GoogleDocPreview url={artifact.url} />
+          </div>
         )}
 
         {/* Error display */}
