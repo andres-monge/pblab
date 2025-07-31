@@ -166,16 +166,29 @@ export default async function ProjectWorkspace({
           </Badge>
         </div>
 
-        {/* Problem Description */}
-        {project.problem.description && (
+        {/* Problem Description and Learning Goals */}
+        {(project.problem.description || project.learning_goals) && (
           <Card>
             <CardHeader>
               <CardTitle>Problem Description</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="prose prose-sm max-w-none">
-                {project.problem.description}
-              </div>
+            <CardContent className="space-y-6">
+              {project.problem.description && (
+                <div>
+                  <div className="prose prose-sm max-w-none">
+                    {project.problem.description}
+                  </div>
+                </div>
+              )}
+              
+              {project.learning_goals && (
+                <div>
+                  <h4 className="text-sm font-medium mb-3">Learning Goals & Problem Statement</h4>
+                  <div className="bg-muted p-4 rounded-md">
+                    <p className="text-sm whitespace-pre-wrap">{project.learning_goals}</p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -283,16 +296,6 @@ export default async function ProjectWorkspace({
                       currentUserRole={user.role}
                       isLocked={isLocked}
                     />
-                  </div>
-                )}
-                
-                {/* Show learning goals if they exist (read-only in non-pre phases) */}
-                {project.learning_goals && (
-                  <div className="mt-6">
-                    <h4 className="text-sm font-medium mb-2">Learning Goals</h4>
-                    <div className="bg-muted p-4 rounded-md">
-                      <p className="text-sm whitespace-pre-wrap">{project.learning_goals}</p>
-                    </div>
                   </div>
                 )}
               </div>
