@@ -169,7 +169,20 @@ function AuthFormContent({
   const config = {
     login: {
       title: "Login",
-      description: "Enter your email and password to sign in",
+      description: (
+        <>
+          Enter your email and password to sign in. If you are a pre-seeded user, please use the emails and passwords provided in the{" "}
+          <a 
+            href="https://github.com/andres-monge/pblab" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-600 hover:text-blue-800 underline"
+          >
+            repo
+          </a>
+          {" "}README.
+        </>
+      ),
       buttonText: isLoading ? "Signing in..." : "Sign in",
       linkText: "Don't have an account?",
       linkHref: "/auth/sign-up",
@@ -185,7 +198,20 @@ function AuthFormContent({
         ? `Create your account to join ${teamName || "the team"}`
         : isUserInviteSignup
           ? `You've been invited to join as a ${userInviteData?.role || "user"}. Create your account to get started.`
-          : "Create a new account with your email and password",
+          : (
+            <>
+              Create a new account with your email and password. If you are a pre-seeded user, please use the emails and passwords provided in the{" "}
+              <a 
+                href="https://github.com/andres-monge/pblab" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 underline"
+              >
+                repo
+              </a>
+              {" "}README.
+            </>
+          ),
       buttonText: isLoading 
         ? (isTeamInviteSignup ? "Joining team..." : isUserInviteSignup ? "Creating account..." : "Creating account...") 
         : (isTeamInviteSignup ? "Join team" : isUserInviteSignup ? "Accept invite" : "Create account"),
